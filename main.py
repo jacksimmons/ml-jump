@@ -1,16 +1,18 @@
 import pygame
+import numpy as np
+from scenario import Scenario
 
 #Initialise pygame
 pygame.init()
 
-#Create a display window
+scenario = Scenario()
 
-wx = 1000 #Display's x dimension
-wy = 1000 #Display's y dimension
+#Create a display window
+dim = dw, dh = 500, 500 #Display's width and height
 
 splitx = 100 #The x coordinate of the line separating the main window and the dev console
 
-disp = pygame.display.set_mode((wx, wy))
+disp = pygame.display.set_mode(dim)
 pygame.display.set_caption("Title Screen")
 
 #Initialise fonts
@@ -23,17 +25,11 @@ h = 50
 
 v = 5
 
-dim = 60, 40
-
 black = 0, 0, 0
 white = 255, 255, 255
 red = 255, 0, 0
 green = 0, 255, 0
 blue = 0, 0, 255
-
-rects = {
-    'button1': (10,20,30,40) #x, y, w, h
-}
 
 #Create a Clock object and limit framerate
 clock = pygame.time.Clock()
@@ -41,14 +37,24 @@ fps_limit = 60
 
 #Titlescreen loop
 title = True
-while title:
-    clock.tick(fps_limit)
 
+def adjust_to_centre_x(rect, dim):
+  x, y, w, h = rect[0], rect[1], rect[2], rect[3]
+  newx = dim[0]/2 - w/2
+  return (newx, y, w, h)
+
+
+while title:
+    events()
+    loop()
+    render()
+    
+    clock.tick(fps_limit)
+  
     #Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             title = False
-        if event.type == 
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE]:
@@ -57,9 +63,9 @@ while title:
     print(clock.get_time())
 
     disp.fill(black)
-    pygame.draw.line(disp, white, (splitx, wy), (splitx, 0))
-    pygame.draw.rect(disp, red, (x, y, w, h))
-    font.render('Text', False, white)
+    title1 = pygame.draw.rect(disp, red, adjust_to_centre_x(rects['b1'], dim))
+    r = font.render('Text', False, black)
+    disp.blit(r, title1)
     pygame.display.update()
 
 pygame.quit()
