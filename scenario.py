@@ -10,7 +10,6 @@ class Scene:
 
         self.title = title
         self.size = self.width, self.height = width, height
-        self.is_running = True
         self.fps_lim = fps_lim
 
         pygame.init()
@@ -20,7 +19,7 @@ class Scene:
 
         pygame.display.set_caption(self.title)
         
-        self.objects = {} #All of the Objects currently on stage (includes all of the below), assigned with its layer component
+        self.objects = [] #All of the Objects currently on stage (includes all of the below)
         self.buttons = [] #All of the Buttons currently on stage
         self.dynamic = [] #An array of Objects affected by Physics
 
@@ -37,18 +36,26 @@ class Scene:
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self.is_running = False
+
         if event.type == pygame.MOUSEMOTION:
+            x, y = event.pos
             for button in self.buttons:
-                if button.mouse_is_hovering():
+                if button.get_rect().collidepoint(x,y):
                     if np.all(button.get_colour() >= button.get_default_colour()/2):
                         button.set_colour(button.get_colour()-button.get_default_colour()/10)
-                elif np.any(button.get_colour() < button.get_default_colour()):
-                    button.set_colour(button.get_colour()+button.get_default_colour()/10)
+                    elif np.any(button.get_colour() < button.get_default_colour()):
+                        button.set_colour(button.get_colour()+button.get_default_colour()/10)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
             for button in self.buttons:
-                if button.mouse_is_hovering():
-                    pass
+                if button.get_rect().collidepoint(x,y):
+                    if button.get_name() == "TITLE_PLAY":
+                        self.new_scene("Game", (640, 480), 70)
+
+        if event.type == pygame.KEYDOWN:
+            if self.title == "Game":
+                pass
 
     def on_loop(self):
         self.update_objects()
@@ -92,8 +99,24 @@ class Scene:
     def get_title(self):
         return self.title
 
+    def new_scene(self, title, size:tuple, fps_limit:int):
+        self.title = title
+        self.size = self.width, self.height = size
+        self.is_running = True
+        self.fps_lim = fps_limit
+
+        self.surface = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        pygame.display.set_caption(self.title)
+
+        self.objects = []
+        self.buttons = []
+        self.dynamic = []
+
+        self.layers = {}
+
+
     def add_object(self, object):
-        self.objects.update({object: object.get_layer()})
+        self.objects.append(object)
 
     def remove_object(self, object):
         self.objects.remove(object)
@@ -112,16 +135,18 @@ class Scene:
                 self.dynamic.remove(dynamic_object) #If a Dynamic Object is not an active Object, there is no reason to keep it.
 
     def order_objects(self):
+        layers = [object.get_layer() for object in self.objects]
+
         for object in self.objects:
 
-            layer = self.objects[object]
+            layer = self.objects.index(object)
 
-            if layer not in self.layers: #If the layer doesn't exist...
-                self.layers.update({layer: [object]}) #...create a new entry in the dictionary for that layer
+            if layer not in self.layers:
+                self.layers.update({layer: [object]})
             else:
                 objects_in_layer = self.layers[layer]
                 objects_in_layer.append(object)
-                self.layers.update({layer: objects_in_layer}) #Add the object to the objects_in_layer and update the dictionary
+                self.layers.update({layer: objects_in_layer})
 
     def get_objects(self):
         return self.objects
@@ -167,20 +192,13 @@ class TextObject:
         self.bg = background
 
 class Object:
-    def __init__(self, id, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None):
-        self.id = id #A unique decimal identifier which shows which object type it is
+    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None):
         self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
         self.colour = np.array(colour) #A 24-bit tuple to display colour
         self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
         self.layer = layer
         self.width = width
         self.image = image
-
-    def set_id(self, id:int):
-        self.id = id
-
-    def get_id(self):
-        return self.id
 
     def set_rect(self, rect:pygame.Rect):
         self.rect = rect
@@ -245,10 +263,11 @@ class Object:
         self.set_rect(newrect)
 
 class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
-    def __init__(self, id, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None, textobj:TextObject=None):
-        super().__init__(id, rect, colour, layer, width, image)
+    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, name=None, textobj:TextObject=None, width:int=0, image=None):
+        super().__init__(rect, colour, layer, width, image)
 
         self.textobj = textobj
+        self.name = name
 
     def set_textobj(self, textobj):
         self.textobj = textobj
@@ -256,16 +275,9 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
     def get_textobj(self):
         return self.textobj
 
-    def mouse_is_hovering(self):
-        x = pygame.mouse.get_pos()[0]
-        y = pygame.mouse.get_pos()[1]
-
-        if x in range(self.rect.left + 1, self.rect.left + self.rect.width):
-            if y in range(self.rect.top + 1, self.rect.top + self.rect.height):
-                return True
-
-        return False
+    def get_name(self):
+        return self.name
 
 class Obstacle(Object):
-    def __init__(self, id, rect:pygame.Rect, colour:pygame.Color, layer:int, width=0, image=None):
-        super().__init__(id, rect, colour, layer, width, image)
+    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width=0, image=None):
+        super().__init__(rect, colour, layer, width, image)

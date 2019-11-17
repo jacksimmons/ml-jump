@@ -86,7 +86,7 @@ title = Scene("Title Screen", 500, 500, 60)
 
 menu_font = pygame.font.SysFont(name='Bahnschrift', size=15, bold=False, italic=False)
 button1_text = TextObject("Play", menu_font, black)
-button1 = UI(1, (0, 30, 100, 20), red, 1, 0, None, button1_text)
+button1 = UI((0, 30, 100, 20), red, 1, "TITLE_PLAY", button1_text)
 
 title.add_object(button1)
 title.add_button(button1)
