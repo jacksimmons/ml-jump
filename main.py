@@ -1,5 +1,7 @@
 import pygame
 import numpy as np
+
+import auth
 from scenario import *
 
 #Initialise pygame
@@ -31,69 +33,32 @@ red = 255, 0, 0
 green = 0, 255, 0
 blue = 0, 0, 255
 
-#Titlescreen loop
-title = True
 
-def adjust_to_centre_x(x, w):
-  newx = dim[0]/2 - w/2
-  return x, w
+game = Game("Authorisation", 200, 200, 60)
 
-def physics_update(scenario):
-    scenario.append_dynamic(player)
-    objects = scenario.get_dynamic()
-
-
-def events(player):
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            title = False
-
-        elif event.type == pygame.KEYDOWN:
-
-            x, y = 0, 0
-
-            global movement
-
-            if event.key == pygame.K_w:
-                movement.append(('y', -v))
-            elif event.key == pygame.K_a:
-                movement.append(('x', -v))
-            elif event.key == pygame.K_s:
-                movement.append(('y', v))
-            elif event.key == pygame.K_d:
-                movement.append(('x', v))
-
-        elif event.type == pygame.KEYUP:
-
-            if event.key == pygame.K_w:
-                movement.remove(('y', -v))
-            elif event.key == pygame.K_a:
-                movement.remove(('x', -v))
-            elif event.key == pygame.K_s:
-                movement.remove(('y', v))
-            elif event.key == pygame.K_d:
-                movement.remove(('x', v))
-
-def loop(player):
-
-    global movement
-
-    for move in movement:
-        player.move(move[0], move[1])
-
-title = Scene("Title Screen", 500, 500, 60)
-
+#Fonts
 menu_font = pygame.font.SysFont(name='Bahnschrift', size=15, bold=False, italic=False)
+
+#TextObjects
 button1_text = TextObject("Play", menu_font, black)
+
+#Buttons
 button1 = UI((0, 30, 100, 20), red, 1, "TITLE_PLAY", button1_text)
 
-title.add_object(button1)
-title.add_button(button1)
+#Title functions
+game.add_object(button1)
+game.add_button(button1)
 
 button1.set_centre_to_centre_of_surface('x')
 
-title.on_execute()
+while True:
+    game.on_execute()
+
+    if game.get_title() == "Game":
+        #Create the player object
+        player = Player((100, 100, 100, 100), red, 1)
+        game.add_object(player)
+        game.set_player(player)
 
     #physics_update(scenario)
     #events(player)

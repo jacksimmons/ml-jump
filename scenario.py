@@ -4,7 +4,7 @@ from pygame.locals import *
 import numpy as np
 import math
 
-class Scene:
+class Game:
     #Source tutorial: http://pygametutorials.wikidot.com/tutorials-basic
     def __init__(self, title, width, height, fps_lim):
 
@@ -18,10 +18,12 @@ class Scene:
         self.clock = pygame.time.Clock()
 
         pygame.display.set_caption(self.title)
-        
+
         self.objects = [] #All of the Objects currently on stage (includes all of the below)
         self.buttons = [] #All of the Buttons currently on stage
         self.dynamic = [] #An array of Objects affected by Physics
+
+        self.players = [] #An array of Player objects on stage
 
         self.layers = {} #A dictionary of arrays in the format: {Layer Number: [objects in layer]}
 
@@ -41,10 +43,9 @@ class Scene:
             x, y = event.pos
             for button in self.buttons:
                 if button.get_rect().collidepoint(x,y):
-                    if np.all(button.get_colour() >= button.get_default_colour()/2):
-                        button.set_colour(button.get_colour()-button.get_default_colour()/10)
-                    elif np.any(button.get_colour() < button.get_default_colour()):
-                        button.set_colour(button.get_colour()+button.get_default_colour()/10)
+                    button.set_hovering(True)
+                else:
+                    button.set_hovering(False)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
@@ -61,9 +62,21 @@ class Scene:
         self.update_objects()
         self.order_objects()
 
+        x, y = pygame.mouse.get_pos()
+        for button in self.buttons:
+            if button.get_hovering():
+                if button.get_rect().collidepoint(x, y):
+                    button.fade(20)
+                else:
+                    button.set_hovering(False)
+            else:
+                if button.get_rect().collidepoint(x, y):
+                    button.set_hovering(True)
+                elif button.colour_is_default() == False:
+                    button.unfade(20)
+
         self.clock.tick(self.fps_lim)
-        print(self.clock.get_time())
-    
+
     def on_render(self):
 
         self.surface.fill(self.black)
@@ -86,12 +99,14 @@ class Scene:
         if self.__init__ == False:
             self.is_running = False
 
-        while self.is_running:
+        if self.is_running:
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
             self.on_render()
-        self.on_quit()
+
+        else:
+            self.on_quit()
 
     def set_title(self, new_title):
         self.title = new_title
@@ -182,6 +197,9 @@ class Scene:
     def get_dynamic(self):
         return self.dynamic
 
+    def add_player(self, player):
+        self.players.append(player)
+
 class TextObject:
     def __init__(self, text, font:pygame.font.Font, colour:pygame.Color, antialias=True, background=None):
         self.text = text
@@ -217,17 +235,20 @@ class Object:
 
     def set_layer(self, layer:int):
         self.layer = layer
-        
+
     def get_layer(self):
         return self.layer
+
+    def colour_is_default(self):
+        return np.all(self.colour == self.default_colour)
 
     def move(self, dir, distance:float):
         if dir == 'x':
             newrect = pygame.Rect(self.rect).move(distance, 0)
         elif dir == 'y':
             newrect = pygame.Rect(self.rect).move(0, distance)
-            
-        self.set_rect(newrect)
+
+        self.rect = newrect
 
     def set_centre(self, x:int, y:int):
         self.rect.center = (x, y)
@@ -247,9 +268,7 @@ class Object:
             print("No surface found.")
 
     def apply_vec(self, vec:pygame.math.Vector2):
-        newrect = self.rect.move(vec)
-
-        self.set_rect(newrect)
+        self.rect = self.rect.move(vec)
 
     def apply_force(self, magnitude:float, direction:float, unit_is_degrees:bool=False):
         if unit_is_degrees:
@@ -259,8 +278,13 @@ class Object:
             x = magnitude * math.cos(direction)
             y = magnitude * math.sin(direction)
 
-        newrect = self.rect.move(x, y)
-        self.set_rect(newrect)
+        self.rect = self.rect.move(x, y)
+
+class Player(Object): #A player version of the standard Object class.
+    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None):
+        super().__init__(rect, colour, layer, width, image)
+
+        self.status = True #Boolean status to indicate whether the Player is alive (True) or dead (False)
 
 class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, name=None, textobj:TextObject=None, width:int=0, image=None):
@@ -268,6 +292,7 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
 
         self.textobj = textobj
         self.name = name
+        self.mouse_is_hovering = False
 
     def set_textobj(self, textobj):
         self.textobj = textobj
@@ -277,6 +302,38 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
 
     def get_name(self):
         return self.name
+
+    def set_hovering(self, mouse_is_hovering:bool):
+        self.mouse_is_hovering = mouse_is_hovering
+
+    def get_hovering(self):
+        return self.mouse_is_hovering
+
+    def fade(self, degree:int, minimum_ratio:int=0.3):
+        skip = False
+
+        if np.any((self.colour - self.default_colour / degree) < self.default_colour * minimum_ratio):
+            skip = True
+        elif np.any(self.colour < self.default_colour * minimum_ratio):
+            skip = True
+
+        if skip:
+            self.colour = self.default_colour * minimum_ratio
+        else:
+            self.colour = self.colour - self.default_colour / degree
+
+    def unfade(self, degree:int, maximum_ratio:int=1):
+        skip = False
+
+        if np.any((self.colour + self.default_colour / degree) > self.default_colour * maximum_ratio):
+            skip = True
+        elif np.any(self.colour > self.default_colour * maximum_ratio):
+            skip = True
+
+        if skip:
+            self.colour = self.default_colour * maximum_ratio
+        else:
+            self.colour = self.colour + self.default_colour / degree
 
 class Obstacle(Object):
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width=0, image=None):
