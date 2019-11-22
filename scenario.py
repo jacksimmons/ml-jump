@@ -1,39 +1,55 @@
 import pygame
 from pygame.locals import *
 
+from object import *
+#TextObject, Object, Player, UI, Obstacle
+
 import numpy as np
 import math
+import sys
 
 class Game:
     #Source tutorial: http://pygametutorials.wikidot.com/tutorials-basic
     def __init__(self, title, width, height, fps_lim):
 
+        #Window Variables
         self.title = title
         self.size = self.width, self.height = width, height
-        self.fps_lim = fps_lim
 
-        pygame.init()
+        #Pygame initialisation
+        self.on_init()
+
+        #Pygame variables
         self.surface = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
-        self.is_running = True
         self.clock = pygame.time.Clock()
 
-        pygame.display.set_caption(self.title)
+        #Status variables
+        self.is_running = True
+        self.status = "Title"
+        self.fps_lim = fps_lim
+        self.hovering = False
+        self.globalCounter = 0
 
-        self.objects = [] #All of the Objects currently on stage (includes all of the below)
-        self.buttons = [] #All of the Buttons currently on stage
+        #Misc variables
+        self.player = None #The current Player object
+        self.player_grounded = False
+
+        #Object lists used to group object types together
+        self.objects = [] #All of the Objects currently on stage (should include all of the below)
+        self.buttons = [] #All of the Buttons currently on stage (must inherit from UI)
         self.dynamic = [] #An array of Objects affected by Physics
+        self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
 
-        self.players = [] #An array of Player objects on stage
-
-        self.layers = {} #A dictionary of arrays in the format: {Layer Number: [objects in layer]}
-
+        #Default colour constants
         self.red = (255, 0, 0)
         self.green = (0, 255, 0)
         self.blue = (0, 0, 255)
         self.white = (255, 255, 255)
         self.black = (0, 0, 0)
 
-        self.hovering = False
+    def on_init(self):
+        pygame.init()
+        pygame.display.set_caption(self.title)
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -52,15 +68,38 @@ class Game:
             for button in self.buttons:
                 if button.get_rect().collidepoint(x,y):
                     if button.get_name() == "TITLE_PLAY":
-                        self.new_scene("Game", (640, 480), 70)
+                        self.new_scene("Game", (640, 480), 120)
+                        self.status = "Game"
+
 
         if event.type == pygame.KEYDOWN:
-            if self.title == "Game":
-                pass
+            if self.status == "Game":
+                if event.key == pygame.K_d:
+                    self.player.set_component_velocity('x', 5)
+                if event.key == pygame.K_a:
+                    self.player.set_component_velocity('x', -5)
+                if event.key == pygame.K_w:
+                    self.player.set_component_velocity('y', -5)
+                if event.key == pygame.K_s:
+                    self.player.set_component_velocity('y', 5)
+
+        if event.type == pygame.KEYUP:
+            if self.status == "Game":
+                if event.key == pygame.K_d:
+                    self.player.set_component_velocity('x', 0)
+                if event.key == pygame.K_a:
+                    self.player.set_component_velocity('x', 0)
+                if event.key == pygame.K_w:
+                    self.player.set_component_velocity('y', 0)
+                if event.key == pygame.K_s:
+                    self.player.set_component_velocity('y', 0)
 
     def on_loop(self):
+        tenth_frame = False
+        if self.globalCounter % (self.fps_lim/10) == 0:
+            tenth_frame = True
+
         self.update_objects()
-        self.order_objects()
 
         x, y = pygame.mouse.get_pos()
         for button in self.buttons:
@@ -75,15 +114,36 @@ class Game:
                 elif button.colour_is_default() == False:
                     button.unfade(20)
 
+        if self.status == "Game" and self.player is not None:
+            if self.player_grounded:
+                #ground_y = self.locate_active_ground()
+                if self.player.get_component_velocity('y') > 0:
+                    self.player.set_component_velocity('y', 0)
+
+            elif tenth_frame:
+                #This ensures it only happens 10 times per second by checking the framerate with the globalCounter
+                self.player.accelerate('y', 1)
+
+            for g in self.ground:
+                r = g.get_rect()
+                p = self.player.get_rect()
+                if p.colliderect(r):
+                    self.player_grounded = True
+                elif pygame.Rect((p.x, p.y + self.player.get_component_velocity('y'), p.w, p.h)).colliderect(r):
+                    self.player.set_component_velocity('y', 0)
+                else:
+                    self.player_grounded = False
+
+        for object in self.objects:
+            object.move(object.get_velocity())
+
         self.clock.tick(self.fps_lim)
 
     def on_render(self):
-
         self.surface.fill(self.black)
 
-        for layer in self.layers:
-            for object in self.layers[layer]:
-                pygame.draw.rect(self.surface, object.get_colour(), object.get_rect())
+        for object in self.objects:
+            pygame.draw.rect(self.surface, object.get_colour(), object.get_rect())
 
         for button in self.buttons:
             t = button.get_textobj()
@@ -94,17 +154,15 @@ class Game:
 
     def on_quit(self):
         pygame.quit()
+        sys.exit()
 
     def on_execute(self):
-        if self.__init__ == False:
-            self.is_running = False
-
         if self.is_running:
+            self.globalCounter += 1
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
             self.on_render()
-
         else:
             self.on_quit()
 
@@ -113,6 +171,9 @@ class Game:
 
     def get_title(self):
         return self.title
+
+    def get_status(self):
+        return self.status
 
     def new_scene(self, title, size:tuple, fps_limit:int):
         self.title = title
@@ -126,8 +187,7 @@ class Game:
         self.objects = []
         self.buttons = []
         self.dynamic = []
-
-        self.layers = {}
+        self.ground = []
 
 
     def add_object(self, object):
@@ -138,203 +198,55 @@ class Game:
 
     def update_objects(self):
         for button in self.buttons:
-            if button in self.objects:
-                pass
-            else:
+            if button not in self.objects:
                 self.buttons.remove(button) #If a Button is not in Objects, then it will not be used so it can be silently discarded.
 
         for dynamic_object in self.dynamic:
-            if dynamic_object in self.objects:
-                pass
-            else:
+            if dynamic_object not in self.objects:
                 self.dynamic.remove(dynamic_object) #If a Dynamic Object is not an active Object, there is no reason to keep it.
-
-    def order_objects(self):
-        layers = [object.get_layer() for object in self.objects]
-
-        for object in self.objects:
-
-            layer = self.objects.index(object)
-
-            if layer not in self.layers:
-                self.layers.update({layer: [object]})
-            else:
-                objects_in_layer = self.layers[layer]
-                objects_in_layer.append(object)
-                self.layers.update({layer: objects_in_layer})
 
     def get_objects(self):
         return self.objects
 
-    def add_button(self, buttons):
-        if isinstance(buttons, list):
-            for button in buttons:
-                if isinstance(button, UI):
-                    self.buttons.append(button)
-                else:
-                    raise TypeError("Invalid type: A button must be a UI-type object.")
-        else:
-            if isinstance(buttons, UI):
-                self.buttons.append(buttons)
-            else:
-                raise TypeError("Invalid type: A button must be a UI-type object.")
+    def add_button(self, button):
+        self.buttons.append(button)
 
-    def remove_button(self, buttons):
-        self.buttons.remove(buttons)
+    def remove_button(self, button):
+        self.buttons.remove(button)
 
     def get_buttons(self):
         return self.buttons
 
-    def add_dynamic(self, objects):
-        self.dynamic.append(objects)
+    def add_dynamic(self, object):
+        self.dynamic.append(object)
 
-    def remove_dynamic(self, objects):
-        self.dynamic.remove(objects)
-
-    def clear_dynamic(self):
-        self.dynamic = []
+    def remove_dynamic(self, object):
+        self.dynamic.remove(object)
 
     def get_dynamic(self):
         return self.dynamic
 
-    def add_player(self, player):
-        self.players.append(player)
+    def add_ground(self, object):
+        self.ground.append(object)
 
-class TextObject:
-    def __init__(self, text, font:pygame.font.Font, colour:pygame.Color, antialias=True, background=None):
-        self.text = text
-        self.font = font
-        self.colour = np.array(colour)
-        self.default_colour = np.array(colour)
-        self.antialias = antialias
-        self.bg = background
+    def remove_ground(self, object):
+        self.ground.remove(object)
 
-class Object:
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None):
-        self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
-        self.colour = np.array(colour) #A 24-bit tuple to display colour
-        self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
-        self.layer = layer
-        self.width = width
-        self.image = image
+    #def locate_active_ground(self):
+#        x, y, w, h = self.player.get_rect()
+#        temp = Object((x, y, 1, 1), self.green)
+#        for g in self.ground:
+#            if temp.get_rect().colliderect(g.get_rect()):
+#                break
+#        print(temp.get_rect())
+#        if self.player_grounded:
+#            temp.move((0,1))
+#        else:
+#            temp.move((0,-1))
+#        return temp.get_rect().y
 
-    def set_rect(self, rect:pygame.Rect):
-        self.rect = rect
+    def set_player(self, player):
+        self.player = player
 
-    def get_rect(self):
-        return self.rect
-
-    def set_colour(self, colour:pygame.Color):
-        self.colour = colour
-
-    def get_colour(self):
-        return self.colour
-
-    def get_default_colour(self):
-        return self.default_colour
-
-    def set_layer(self, layer:int):
-        self.layer = layer
-
-    def get_layer(self):
-        return self.layer
-
-    def colour_is_default(self):
-        return np.all(self.colour == self.default_colour)
-
-    def move(self, dir, distance:float):
-        if dir == 'x':
-            newrect = pygame.Rect(self.rect).move(distance, 0)
-        elif dir == 'y':
-            newrect = pygame.Rect(self.rect).move(0, distance)
-
-        self.rect = newrect
-
-    def set_centre(self, x:int, y:int):
-        self.rect.center = (x, y)
-
-    def set_centre_to_centre_of_surface(self, axis=None):
-        surface = pygame.display.get_surface()
-        if surface is not None:
-            if axis == 'x':
-                self.rect.centerx = surface.get_width()/2
-            elif axis == 'y':
-                self.rect.centery = surface.get_height()/2
-            elif axis is None:
-                self.rect.center = (surface.get_width()/2, surface.get_height()/2)
-            else:
-                print("Invalid axis entered.")
-        else:
-            print("No surface found.")
-
-    def apply_vec(self, vec:pygame.math.Vector2):
-        self.rect = self.rect.move(vec)
-
-    def apply_force(self, magnitude:float, direction:float, unit_is_degrees:bool=False):
-        if unit_is_degrees:
-            x = magnitude * math.cos(math.radians(direction)) #Conversion of degrees to radians, as python handles sin in radians.
-            y = magnitude * math.sin(math.radians(direction)) #Degrees -> Radians: Divide by 180, multiply by pi
-        else:
-            x = magnitude * math.cos(direction)
-            y = magnitude * math.sin(direction)
-
-        self.rect = self.rect.move(x, y)
-
-class Player(Object): #A player version of the standard Object class.
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width:int=0, image=None):
-        super().__init__(rect, colour, layer, width, image)
-
-        self.status = True #Boolean status to indicate whether the Player is alive (True) or dead (False)
-
-class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, name=None, textobj:TextObject=None, width:int=0, image=None):
-        super().__init__(rect, colour, layer, width, image)
-
-        self.textobj = textobj
-        self.name = name
-        self.mouse_is_hovering = False
-
-    def set_textobj(self, textobj):
-        self.textobj = textobj
-
-    def get_textobj(self):
-        return self.textobj
-
-    def get_name(self):
-        return self.name
-
-    def set_hovering(self, mouse_is_hovering:bool):
-        self.mouse_is_hovering = mouse_is_hovering
-
-    def get_hovering(self):
-        return self.mouse_is_hovering
-
-    def fade(self, degree:int, minimum_ratio:int=0.3):
-        skip = False
-
-        if np.any((self.colour - self.default_colour / degree) < self.default_colour * minimum_ratio):
-            skip = True
-        elif np.any(self.colour < self.default_colour * minimum_ratio):
-            skip = True
-
-        if skip:
-            self.colour = self.default_colour * minimum_ratio
-        else:
-            self.colour = self.colour - self.default_colour / degree
-
-    def unfade(self, degree:int, maximum_ratio:int=1):
-        skip = False
-
-        if np.any((self.colour + self.default_colour / degree) > self.default_colour * maximum_ratio):
-            skip = True
-        elif np.any(self.colour > self.default_colour * maximum_ratio):
-            skip = True
-
-        if skip:
-            self.colour = self.default_colour * maximum_ratio
-        else:
-            self.colour = self.colour + self.default_colour / degree
-
-class Obstacle(Object):
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, layer:int, width=0, image=None):
-        super().__init__(rect, colour, layer, width, image)
+    def get_colours(self):
+        return self.red, self.green, self.blue, self.white, self.black
