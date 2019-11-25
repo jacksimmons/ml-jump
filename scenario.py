@@ -32,7 +32,7 @@ class Game:
 
         #Misc variables
         self.player = None #The current Player object
-        self.player_grounded = False
+        self.player_in_ground = False
 
         #Object lists used to group object types together
         self.objects = [] #All of the Objects currently on stage (should include all of the below)
@@ -68,31 +68,32 @@ class Game:
             for button in self.buttons:
                 if button.get_rect().collidepoint(x,y):
                     if button.get_name() == "TITLE_PLAY":
-                        self.new_scene("Game", (640, 480), 120)
+                        self.new_scene("Game", (640, 480), 60)
                         self.status = "Game"
 
 
         if event.type == pygame.KEYDOWN:
             if self.status == "Game":
-                if event.key == pygame.K_d:
-                    self.player.set_component_velocity('x', 5)
-                if event.key == pygame.K_a:
-                    self.player.set_component_velocity('x', -5)
-                if event.key == pygame.K_w:
+                #if event.key == pygame.K_d:
+                #    self.player.set_component_velocity('x', 5)
+                #if event.key == pygame.K_a:
+                #    self.player.set_component_velocity('x', -5)
+                if event.key == pygame.K_SPACE and self.player.get_jumping() == False:
                     self.player.set_component_velocity('y', -5)
-                if event.key == pygame.K_s:
-                    self.player.set_component_velocity('y', 5)
+                    self.player.set_jumping(True)
+                #if event.key == pygame.K_s:
+                #    self.player.set_component_velocity('y', 5)
 
         if event.type == pygame.KEYUP:
             if self.status == "Game":
-                if event.key == pygame.K_d:
-                    self.player.set_component_velocity('x', 0)
-                if event.key == pygame.K_a:
-                    self.player.set_component_velocity('x', 0)
-                if event.key == pygame.K_w:
+                #if event.key == pygame.K_d:
+                #    self.player.set_component_velocity('x', 0)
+                #if event.key == pygame.K_a:
+                #    self.player.set_component_velocity('x', 0)
+                if event.key == pygame.K_SPACE and self.player.get_jumping():
                     self.player.set_component_velocity('y', 0)
-                if event.key == pygame.K_s:
-                    self.player.set_component_velocity('y', 0)
+                #if event.key == pygame.K_s:
+                #    self.player.set_component_velocity('y', 0)
 
     def on_loop(self):
         tenth_frame = False
@@ -115,7 +116,7 @@ class Game:
                     button.unfade(20)
 
         if self.status == "Game" and self.player is not None:
-            if self.player_grounded:
+            if self.player_in_ground:
                 #ground_y = self.locate_active_ground()
                 if self.player.get_component_velocity('y') > 0:
                     self.player.set_component_velocity('y', 0)
@@ -127,12 +128,19 @@ class Game:
             for g in self.ground:
                 r = g.get_rect()
                 p = self.player.get_rect()
+                
+                rx, ry, rw, rh = r.x, r.y, r.w, r.h
+                buffer = pygame.Rect(rx, ry-1, rw, rh)
+                
+                if p.colliderect(buffer):
+                    self.player.set_jumping(False)
+                
                 if p.colliderect(r):
-                    self.player_grounded = True
+                    self.player_in_ground = True
                 elif pygame.Rect((p.x, p.y + self.player.get_component_velocity('y'), p.w, p.h)).colliderect(r):
                     self.player.set_component_velocity('y', 0)
                 else:
-                    self.player_grounded = False
+                    self.player_in_ground = False
 
         for object in self.objects:
             object.move(object.get_velocity())
@@ -239,7 +247,7 @@ class Game:
 #            if temp.get_rect().colliderect(g.get_rect()):
 #                break
 #        print(temp.get_rect())
-#        if self.player_grounded:
+#        if self.player_in_ground:
 #            temp.move((0,1))
 #        else:
 #            temp.move((0,-1))
