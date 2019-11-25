@@ -1,184 +1,260 @@
 import pygame
+from pygame.locals import *
+
+from object import *
+#TextObject, Object, Player, UI, Obstacle
 
 import numpy as np
 import math
+import sys
 
-class TextObject:
-    def __init__(self, text, font:pygame.font.Font, colour:pygame.Color, antialias=True, background=None):
-        self.text = text
-        self.font = font
-        self.colour = np.array(colour)
-        self.default_colour = np.array(colour)
-        self.antialias = antialias
-        self.bg = background
+class Game:
+    #Source tutorial: http://pygametutorials.wikidot.com/tutorials-basic
+    def __init__(self, title, width, height, fps_lim):
 
-class Object:
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=0, image=None):
-        self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
-        self.colour = np.array(colour) #A 24-bit tuple to display colour
-        self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
-        self.width = width
-        self.image = image
+        #Window Variables
+        self.title = title
+        self.size = self.width, self.height = width, height
 
-#       self.is_grounded = False
+        #Pygame initialisation
+        self.on_init()
 
-        self.h_velocity = 0 #Horizontal velocity
-        self.v_velocity = 0 #Vertical velocity
+        #Pygame variables
+        self.surface = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.clock = pygame.time.Clock()
 
-    def set_rect(self, rect:pygame.Rect):
-        self.rect = rect
+        #Status variables
+        self.is_running = True
+        self.status = "Title"
+        self.fps_lim = fps_lim
+        self.hovering = False
+        self.globalCounter = 0
 
-    def get_rect(self):
-        return self.rect
+        #Misc variables
+        self.player = None #The current Player object
+        self.player_in_ground = False
 
-    def set_centre(self, x:int, y:int):
-        self.rect.center = (x, y)
+        #Object lists used to group object types together
+        self.objects = [] #All of the Objects currently on stage (should include all of the below)
+        self.buttons = [] #All of the Buttons currently on stage (must inherit from UI)
+        self.dynamic = [] #An array of Objects affected by Physics
+        self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
 
-    def set_axis_to_centre(self, axis=None):
-        surface = pygame.display.get_surface()
-        if surface is not None:
-            if axis == 'x':
-                self.rect.centerx = surface.get_width()/2
-            elif axis == 'y':
-                self.rect.centery = surface.get_height()/2
-            elif axis is None:
-                self.rect.center = (surface.get_width()/2, surface.get_height()/2)
+        #Default colour constants
+        self.red = (255, 0, 0)
+        self.green = (0, 255, 0)
+        self.blue = (0, 0, 255)
+        self.white = (255, 255, 255)
+        self.black = (0, 0, 0)
+
+    def on_init(self):
+        pygame.init()
+        pygame.display.set_caption(self.title)
+
+    def on_event(self, event):
+        if event.type == pygame.QUIT:
+            self.is_running = False
+
+        if event.type == pygame.MOUSEMOTION:
+            x, y = event.pos
+            for button in self.buttons:
+                if button.get_rect().collidepoint(x,y):
+                    button.set_hovering(True)
+                else:
+                    button.set_hovering(False)
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
+            for button in self.buttons:
+                if button.get_rect().collidepoint(x,y):
+                    if button.get_name() == "TITLE_PLAY":
+                        self.new_scene("Game", (640, 480), 60)
+                        self.status = "Game"
+
+
+        if event.type == pygame.KEYDOWN:
+            if self.status == "Game":
+                #if event.key == pygame.K_d:
+                #    self.player.set_component_velocity('x', 5)
+                #if event.key == pygame.K_a:
+                #    self.player.set_component_velocity('x', -5)
+                if event.key == pygame.K_SPACE and self.player.get_jumping() == False:
+                    self.player.set_component_velocity('y', -5)
+                    self.player.set_jumping(True)
+                #if event.key == pygame.K_s:
+                #    self.player.set_component_velocity('y', 5)
+
+        if event.type == pygame.KEYUP:
+            if self.status == "Game":
+                #if event.key == pygame.K_d:
+                #    self.player.set_component_velocity('x', 0)
+                #if event.key == pygame.K_a:
+                #    self.player.set_component_velocity('x', 0)
+                if event.key == pygame.K_SPACE and self.player.get_jumping():
+                    self.player.set_component_velocity('y', 0)
+                #if event.key == pygame.K_s:
+                #    self.player.set_component_velocity('y', 0)
+
+    def on_loop(self):
+        tenth_frame = False
+        if self.globalCounter % (self.fps_lim/10) == 0:
+            tenth_frame = True
+
+        self.update_objects()
+
+        x, y = pygame.mouse.get_pos()
+        for button in self.buttons:
+            if button.get_hovering():
+                if button.get_rect().collidepoint(x, y):
+                    button.fade(20)
+                else:
+                    button.set_hovering(False)
             else:
-                print("Invalid axis entered.")
+                if button.get_rect().collidepoint(x, y):
+                    button.set_hovering(True)
+                elif button.colour_is_default() == False:
+                    button.unfade(20)
+
+        if self.status == "Game" and self.player is not None:
+            if self.player_in_ground:
+                #ground_y = self.locate_active_ground()
+                if self.player.get_component_velocity('y') > 0:
+                    self.player.set_component_velocity('y', 0)
+
+            elif tenth_frame:
+                #This ensures it only happens 10 times per second by checking the framerate with the globalCounter
+                self.player.accelerate('y', 1)
+
+            for g in self.ground:
+                r = g.get_rect()
+                p = self.player.get_rect()
+                
+                rx, ry, rw, rh = r.x, r.y, r.w, r.h
+                buffer = pygame.Rect(rx, ry-1, rw, rh)
+                
+                if p.colliderect(buffer):
+                    self.player.set_jumping(False)
+                
+                if p.colliderect(r):
+                    self.player_in_ground = True
+                elif pygame.Rect((p.x, p.y + self.player.get_component_velocity('y'), p.w, p.h)).colliderect(r):
+                    self.player.set_component_velocity('y', 0)
+                else:
+                    self.player_in_ground = False
+
+        for object in self.objects:
+            object.move(object.get_velocity())
+
+        self.clock.tick(self.fps_lim)
+
+    def on_render(self):
+        self.surface.fill(self.black)
+
+        for object in self.objects:
+            pygame.draw.rect(self.surface, object.get_colour(), object.get_rect())
+
+        for button in self.buttons:
+            t = button.get_textobj()
+            text = t.font.render(t.text, t.antialias, t.colour, t.bg)
+            self.surface.blit(text, button.get_rect())
+
+        pygame.display.update()
+
+    def on_quit(self):
+        pygame.quit()
+        sys.exit()
+
+    def on_execute(self):
+        if self.is_running:
+            self.globalCounter += 1
+            for event in pygame.event.get():
+                self.on_event(event)
+            self.on_loop()
+            self.on_render()
         else:
-            print("No surface found.")
+            self.on_quit()
 
-    def set_colour(self, colour:pygame.Color):
-        self.colour = colour
+    def set_title(self, new_title):
+        self.title = new_title
 
-    def get_colour(self):
-        return self.colour
-
-    def get_default_colour(self):
-        return self.default_colour
-
-    def colour_is_default(self):
-        return np.all(self.colour == self.default_colour)
-
-    def move(self, velocity):
-        if isinstance(velocity, tuple):
-            h_velocity = velocity[0]
-            v_velocity = velocity[1]
-            self.rect = self.rect.move(h_velocity, v_velocity)
-
-    def set_component_velocity(self, component, velocity):
-        if component == 'x':
-            self.h_velocity = velocity
-        elif component == 'y':
-            self.v_velocity = velocity
-
-    def get_component_velocity(self, component):
-        if component == 'x':
-            return self.h_velocity
-        elif component == 'y':
-            return self.v_velocity
-
-    def set_velocity(self, velocity):
-        if isinstance(velocity, tuple):
-            self.h_velocity, self.v_velocity = velocity
-        else:
-            print("Not a tuple. Use set_component_velocity()")
-
-    def get_velocity(self):
-        return (self.h_velocity, self.v_velocity)
-
-    def accelerate(self, direction, acceleration):
-        if direction == 'x':
-            self.h_velocity += acceleration
-        elif direction == 'y':
-            self.v_velocity += acceleration
-
-#    def set_grounded(self, is_grounded:bool):
-#        self.is_grounded = is_grounded
-
-#    def get_grounded(self):
-#        return self.is_grounded
-
-    def set_mass(self, mass:int):
-        self.mass = mass
-
-    def get_weight(self):
-        return self.mass * 9.81
-
-    def apply_force(self, magnitude:float, bearing:int, unit_is_degrees:bool=False):
-
-        magnitude = round(magnitude)
-
-        if unit_is_degrees and 0 <= bearing < 360:
-            x = magnitude * math.cos(math.radians(bearing)) #Conversion of degrees to radians, as python handles sin in radians.
-            y = magnitude * math.sin(math.radians(bearing)) #Degrees -> Radians: Divide by 180, multiply by pi
-        elif 0 <= bearing < math.pi:
-            x = magnitude * math.cos(bearing)
-            y = magnitude * math.sin(bearing)
-
-        self.rect = self.rect.move(x, y)
-
-class Player(Object): #A player version of the standard Object class.
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=0, image=None):
-        super().__init__(rect, colour, width, image)
-
-        self.status = True #Boolean status to indicate whether the Player is alive (True) or dead (False)
+    def get_title(self):
+        return self.title
 
     def get_status(self):
         return self.status
 
-    def set_status(self, status:bool):
-        self.status = status
+    def new_scene(self, title, size:tuple, fps_limit:int):
+        self.title = title
+        self.size = self.width, self.height = size
+        self.is_running = True
+        self.fps_lim = fps_limit
 
-class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, name=None, textobj:TextObject=None, width:int=0, image=None):
-        super().__init__(rect, colour, width, image)
+        self.surface = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        pygame.display.set_caption(self.title)
 
-        self.textobj = textobj
-        self.name = name
-        self.mouse_is_hovering = False
+        self.objects = []
+        self.buttons = []
+        self.dynamic = []
+        self.ground = []
 
-    def set_textobj(self, textobj):
-        self.textobj = textobj
 
-    def get_textobj(self):
-        return self.textobj
+    def add_object(self, object):
+        self.objects.append(object)
 
-    def get_name(self):
-        return self.name
+    def remove_object(self, object):
+        self.objects.remove(object)
 
-    def set_hovering(self, mouse_is_hovering:bool):
-        self.mouse_is_hovering = mouse_is_hovering
+    def update_objects(self):
+        for button in self.buttons:
+            if button not in self.objects:
+                self.buttons.remove(button) #If a Button is not in Objects, then it will not be used so it can be silently discarded.
 
-    def get_hovering(self):
-        return self.mouse_is_hovering
+        for dynamic_object in self.dynamic:
+            if dynamic_object not in self.objects:
+                self.dynamic.remove(dynamic_object) #If a Dynamic Object is not an active Object, there is no reason to keep it.
 
-    def fade(self, degree:int, minimum_ratio:int=0.3):
-        skip = False
+    def get_objects(self):
+        return self.objects
 
-        if np.any((self.colour - self.default_colour / degree) < self.default_colour * minimum_ratio):
-            skip = True
-        elif np.any(self.colour < self.default_colour * minimum_ratio):
-            skip = True
+    def add_button(self, button):
+        self.buttons.append(button)
 
-        if skip:
-            self.colour = self.default_colour * minimum_ratio
-        else:
-            self.colour = self.colour - self.default_colour / degree
+    def remove_button(self, button):
+        self.buttons.remove(button)
 
-    def unfade(self, degree:int, maximum_ratio:int=1):
-        skip = False
+    def get_buttons(self):
+        return self.buttons
 
-        if np.any((self.colour + self.default_colour / degree) > self.default_colour * maximum_ratio):
-            skip = True
-        elif np.any(self.colour > self.default_colour * maximum_ratio):
-            skip = True
+    def add_dynamic(self, object):
+        self.dynamic.append(object)
 
-        if skip:
-            self.colour = self.default_colour * maximum_ratio
-        else:
-            self.colour = self.colour + self.default_colour / degree
+    def remove_dynamic(self, object):
+        self.dynamic.remove(object)
 
-class Obstacle(Object):
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width=0, image=None):
-        super().__init__(rect, colour, width, image)
+    def get_dynamic(self):
+        return self.dynamic
+
+    def add_ground(self, object):
+        self.ground.append(object)
+
+    def remove_ground(self, object):
+        self.ground.remove(object)
+
+    #def locate_active_ground(self):
+#        x, y, w, h = self.player.get_rect()
+#        temp = Object((x, y, 1, 1), self.green)
+#        for g in self.ground:
+#            if temp.get_rect().colliderect(g.get_rect()):
+#                break
+#        print(temp.get_rect())
+#        if self.player_in_ground:
+#            temp.move((0,1))
+#        else:
+#            temp.move((0,-1))
+#        return temp.get_rect().y
+
+    def set_player(self, player):
+        self.player = player
+
+    def get_colours(self):
+        return self.red, self.green, self.blue, self.white, self.black
