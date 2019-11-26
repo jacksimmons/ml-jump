@@ -3,6 +3,223 @@ import pygame
 import numpy as np
 import math
 
+class ObjectHandler:
+    def __init__(self):
+        #Object lists used to group object types together
+        self.objects = [] #All of the Objects currently on stage (should include all of the below)
+        self.ui = [] #All of the Buttons currently on stage (must inherit from UI)
+        self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
+
+        #Obstacles and moving objects
+        self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
+        self.obstacles = [] #An array of Objects that kill the player on contact.
+        self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
+
+        #Player variables
+        self.player = None #The current Player object
+        self.player_grounded = False
+        self.player_g_cnt = 0
+
+    #---------------------------------------------------------------------------------
+    #Standard Object-Handling methods
+    #---------------------------------------------------------------------------------
+
+    def cleanup(self): #For effectively creating a new canvas
+        self.__init__()
+
+    def handle_objects(self):
+
+        x, y = pygame.mouse.get_pos()
+        for ui in self.ui:
+            if ui.get_hovering():
+                if ui.get_rect().collidepoint(x, y):
+                    ui.fade(20)
+                else:
+                    ui.set_hovering(False)
+            else:
+                if ui.get_rect().collidepoint(x, y):
+                    ui.set_hovering(True)
+                elif ui.colour_is_default() == False:
+                    ui.unfade(20)
+
+        if self.player is not None:
+            if self.player_grounded:
+                #ground_y = self.locate_active_ground()
+                if self.player.get_component_velocity('y') > 0:
+                    self.player.set_component_velocity('y', 0)
+                self.player_g_cnt = 0
+
+            else:
+                if self.player_g_cnt == 5:
+                    self.player.accelerate('y', 2)
+                    self.player_g_cnt = 0
+
+                self.player_g_cnt += 1
+
+            p = self.player.get_rect()
+            if p.y <= self.ground[0].get_rect().y:
+                #If the player's y position is less than the object's y position (i.e. above it):
+
+                self.player_grounded = False
+                #If none of the ground objects are touching the player, this default value of player_grounded will be used.
+                for g in self.ground:
+
+                    r = g.get_rect()
+
+                    #if p.collidepoint(r.centerx, p.y): #Check if they are on roughly the same x position
+                    if p.colliderect(r.x, r.y-1, r.w, r.h):
+                        self.player_grounded = True
+
+                    if p.colliderect(r):
+                        self.player.set_component_velocity('y', 0)
+                        self.upwarp(p, r)
+                        self.player_grounded = True
+                
+                    if r.colliderect(p.x, p.y + self.player.get_component_velocity('y'), p.w, p.h):
+                        #If the object will go through the ground on the next frame, it must stop immediately.
+                        #This works both for going downwards through a floor and upwards through a floor (ceiling).
+                        self.player.set_component_velocity('y', 0)
+                        self.downwarp(p, r)
+
+        for object in self.objects:
+
+            object.move(object.get_velocity())
+
+            r = object.get_rect()
+            sx, sy = pygame.display.get_surface().get_size()
+            
+            if object is not self.player:
+                if r.x + r.w < 0:
+                    self.objects.remove(object)
+                    del object
+
+                if r.y + r.h < 0:
+                    self.objects.remove(object)
+                    del object
+
+                if r.w < 0 or r.h < 0: #Illegal object (negative length sides)
+                    self.objects.remove(object)
+                    del object
+
+    def add_object(self, object):
+        self.objects.append(object)
+
+    def remove_object(self, object):
+        self.objects.remove(object)
+
+    def update_objects(self):
+        for ui in self.ui:
+            if ui not in self.objects:
+                self.ui.remove(ui) #If an object is not in Objects, then it will not be used so it can be silently discarded.
+
+        for g in self.ground:
+            if g not in self.objects:
+                self.ground.remove(g)
+
+        for m in self.moving:
+            if m not in self.objects:
+                self.moving.remove(m)
+
+        for o in self.obstacles:
+            if o not in self.objects:
+                self.obstacles.remove(o)
+
+    def get_objects(self):
+        return self.objects
+
+    #Button Objects
+    def check_hovering(self, x, y, return_name:bool=False, update_button:bool=False):
+        if self.ui != []:
+            for ui in self.ui:
+                if update_button:
+                    ui.set_hovering(ui.get_rect().collidepoint(x,y))
+
+                if return_name:
+                    return ui.get_rect().collidepoint(x,y), ui.get_name()
+                else:
+                    return ui.get_rect().collidepoint(x,y)
+        else:
+            return None, None
+
+    def add_ui(self, ui):
+        self.ui.append(ui)
+
+    def remove_ui(self, ui):
+        self.ui.remove(ui)
+
+    def get_ui(self):
+        return self.ui
+
+    #Objects that act as Ground
+    def add_ground(self, object):
+        self.ground.append(object)
+
+    def remove_ground(self, object):
+        self.ground.remove(object)
+
+    #Player Objects
+    def set_player(self, player):
+        self.player = player
+
+    def handle_jumping(self, jump:bool):
+        if jump:
+            if self.player_grounded == True:
+                p = self.player.get_rect()
+
+                self.player.set_rect(pygame.Rect(p.x, p.y-1, p.w, p.h))
+                #Move the player 1 pixel up so the program doesn't think they are still on the ground
+                self.player.accelerate('y', -8)
+                return True
+            return False
+
+    def upwarp(self, p:pygame.Rect, g:pygame.Rect):
+        while p.y > g.y - p.h:
+            p.y -= 1
+        self.player.set_rect(p)
+
+    def downwarp(self, p:pygame.Rect, g:pygame.Rect):
+        while p.y + p.h < g.y:
+            p.y += 1
+        self.player.set_rect(p)
+
+    #Moving objects
+    def add_obstacle(self, obstacle):
+        self.obstacles.append(obstacle)
+
+    def remove_obstacle(self, obstacle):
+        self.obstacles.remove(obstacle)
+
+    def add_moving(self, moving):
+        self.moving.append(moving)
+
+    def remove_moving(self, moving):
+        self.moving.remove(moving)
+
+    def handle_obstacles(self):
+        for o in self.obstacles:
+            if o.get_rect().colliderect(self.player.get_rect()):
+                return False
+            return True
+
+    def handle_moving(self):
+        for m in self.moving:
+            m.set_component_velocity('x', -self.object_speed)
+
+    #---------------------------------------------------------------------------------
+    #Rendering
+    #---------------------------------------------------------------------------------
+
+    def render(self, surface):
+        for object in self.objects:
+            pygame.draw.rect(surface, object.get_colour(), object.get_rect())
+
+        for u in self.ui:
+            t = u.get_textobj()
+            text = t.font.render(t.text, t.antialias, t.colour, t.bg)
+            surface.blit(text, u.get_rect())
+
+        pygame.display.update()
+
 class TextObject:
     def __init__(self, text, font:pygame.font.Font, colour:pygame.Color, antialias=True, background=None):
         self.text = text
@@ -118,25 +335,6 @@ class Object:
 
         self.rect = self.rect.move(x, y)
 
-class Player(Object): #A player version of the standard Object class.
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=0, image=None):
-        super().__init__(rect, colour, width, image)
-
-        self.status = True #Boolean status to indicate whether the Player is alive (True) or dead (False)
-        self.jumping = False
-
-    def get_status(self):
-        return self.status
-
-    def set_status(self, status:bool):
-        self.status = status
-        
-    def get_jumping(self):
-        return self.jumping
-        
-    def set_jumping(self, jumping):
-        self.jumping = jumping
-
 class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, name=None, textobj:TextObject=None, width:int=0, image=None):
         super().__init__(rect, colour, width, image)
@@ -185,6 +383,7 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
             self.colour = self.default_colour * maximum_ratio
         else:
             self.colour = self.colour + self.default_colour / degree
+
 
 class Obstacle(Object):
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, width=0, image=None):

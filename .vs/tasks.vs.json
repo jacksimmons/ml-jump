@@ -5,6 +5,11 @@
       "taskLabel": "task-main",
       "appliesTo": "main.py",
       "type": "launch"
+    },
+    {
+      "taskLabel": "task-object_handler",
+      "appliesTo": "object_handler.py",
+      "type": "launch"
     }
   ]
 }
