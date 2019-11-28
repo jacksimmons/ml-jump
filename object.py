@@ -14,6 +14,8 @@ class ObjectHandler:
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
         self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
+        
+        self.obstacle_types = [] #The types of obstacles that can be created
 
         #Player variables
         self.player = None #The current Player object
@@ -194,16 +196,22 @@ class ObjectHandler:
 
     def remove_moving(self, moving):
         self.moving.remove(moving)
-
+        
+    def handle_moving(self):
+        for m in self.moving:
+            m.set_component_velocity('x', -self.object_speed)
+        
+    #Obstacles
+    def create_obstacle(self, timer):
+        """Create obstacles based on the global timer."""
+        if timer % 20 == 0:
+            pass
+        
     def handle_obstacles(self):
         for o in self.obstacles:
             if o.get_rect().colliderect(self.player.get_rect()):
                 return False
             return True
-
-    def handle_moving(self):
-        for m in self.moving:
-            m.set_component_velocity('x', -self.object_speed)
 
     #---------------------------------------------------------------------------------
     #Rendering
