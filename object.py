@@ -21,6 +21,9 @@ class ObjectHandler:
         self.player = None #The current Player object
         self.player_grounded = False
         self.player_g_cnt = 0
+        
+        #Colours
+        self.white = (255, 255, 255)
 
     #---------------------------------------------------------------------------------
     #Standard Object-Handling methods
@@ -205,13 +208,18 @@ class ObjectHandler:
     def create_obstacle(self, timer):
         """Create obstacles based on the global timer."""
         if timer % 20 == 0:
-            pass
+            obstacle = Object((1000, 400, 200, 200), self.white)
+            self.add_object(obstacle)
+            self.add_moving(obstacle)
+            self.add_obstacle(obstacle)
         
-    def handle_obstacles(self):
-        for o in self.obstacles:
-            if o.get_rect().colliderect(self.player.get_rect()):
+    def handle_obstacles(self, globalCounter):
+        self.create_obstacle(globalCounter)
+        o_rects = [o.get_rect() for o in self.obstacles]
+        for r in o_rects:
+            if r.colliderect(self.player.get_rect()):
                 return False
-            return True
+        return True
 
     #---------------------------------------------------------------------------------
     #Rendering
@@ -391,8 +399,3 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
             self.colour = self.default_colour * maximum_ratio
         else:
             self.colour = self.colour + self.default_colour / degree
-
-
-class Obstacle(Object):
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width=0, image=None):
-        super().__init__(rect, colour, width, image)
