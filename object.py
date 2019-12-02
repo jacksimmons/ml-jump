@@ -17,6 +17,8 @@ class ObjectHandler:
         
         self.obstacle_types = [] #The types of obstacles that can be created
 
+        #Handle obstacle arrangements here
+        
         #Player variables
         self.player = None #The current Player object
         self.player_grounded = False
@@ -113,6 +115,7 @@ class ObjectHandler:
         self.objects.remove(object)
 
     def update_objects(self):
+        """Check whether specific types of objects are actually objects themselves."""
         for ui in self.ui:
             if ui not in self.objects:
                 self.ui.remove(ui) #If an object is not in Objects, then it will not be used so it can be silently discarded.
@@ -134,6 +137,7 @@ class ObjectHandler:
 
     #Button Objects
     def check_hovering(self, x, y, return_name:bool=False, update_button:bool=False):
+        """Check if the cursor is hovering over a UI element."""
         if self.ui != []:
             for ui in self.ui:
                 if update_button:
@@ -147,9 +151,11 @@ class ObjectHandler:
             return None, None
 
     def add_ui(self, ui):
+        "Add a UI element."
         self.ui.append(ui)
 
     def remove_ui(self, ui):
+        "Remove a UI element."
         self.ui.remove(ui)
 
     def get_ui(self):
@@ -157,13 +163,18 @@ class ObjectHandler:
 
     #Objects that act as Ground
     def add_ground(self, object):
+        """Add a Ground object."""
+        self.objects.append(object)
         self.ground.append(object)
 
     def remove_ground(self, object):
+        """Remove a Ground object."""
+        self.objects.remove(object)
         self.ground.remove(object)
 
     #Player Objects
     def set_player(self, player):
+        """Sets the object that acts as the player."""
         self.player = player
 
     def handle_jumping(self, jump:bool):
@@ -220,6 +231,12 @@ class ObjectHandler:
             if r.colliderect(self.player.get_rect()):
                 return False
         return True
+    
+    def add_obstacle_type(self, obstacle):
+        self.obstacle_types.append(obstacle)
+        
+    def remove_obstacle_type(self, obstacle):
+        self.obstacle_types.remove(obstacle)
 
     #---------------------------------------------------------------------------------
     #Rendering
@@ -252,8 +269,6 @@ class Object:
         self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
         self.width = width
         self.image = image
-
-#       self.is_grounded = False
 
         self.h_velocity = 0 #Horizontal velocity
         self.v_velocity = 0 #Vertical velocity
@@ -325,12 +340,6 @@ class Object:
             self.h_velocity += acceleration
         elif direction == 'y':
             self.v_velocity += acceleration
-
-#    def set_grounded(self, is_grounded:bool):
-#        self.is_grounded = is_grounded
-
-#    def get_grounded(self):
-#        return self.is_grounded
 
     def set_mass(self, mass:int):
         self.mass = mass
