@@ -48,25 +48,27 @@ class Game:
         pygame.init()
         pygame.display.set_caption(self.title)
 
-    def on_event(self, event):
+    def on_event(self, event, paused):
         if event.type == pygame.QUIT:
             self.is_running = False
 
-        if event.type == pygame.MOUSEMOTION:
-            x, y = event.pos
-            collision = self.obh.check_hovering(x, y, False, True)
-
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            collision, name = self.obh.check_hovering(x, y, True)
+            name = self.obh.check_hovering(x, y, True)
 
-            if name is None:
-                pass
-
-            elif collision:
-                if name == 'TITLE_PLAY':
-                    self.new_scene("Game", (640, 480), 60)
-                    self.status = "Game"
+            if name != False:
+                if paused:
+                    if name == "OPTIONS_TITLE": #Return to Title Screen
+                        self.new_scene("Title", (200, 200), 60)
+                else:
+                    #Buttons on the Title Screen
+                    if name == 'TITLE_PLAY':
+                        self.new_scene("Game", (640, 480), 60)
+                        self.status = "Game"
+                    elif name == 'TITLE_OPTIONS':
+                        self.status = "Options"
+                    elif name == 'QUIT':
+                        self.is_running = False
 
         if event.type == pygame.KEYDOWN:
             if self.status == "Game":
@@ -78,7 +80,10 @@ class Game:
                 if event.key == pygame.K_SPACE:
                     self.jumping = False
 
-    def on_loop(self):
+    def on_loop(self, paused):
+        """The standard loop method where all object and physics
+handling is ordered"""
+
         if self.jumping:
             if self.jump_counter > 0:
                 self.jump_counter -= 1
@@ -95,32 +100,38 @@ class Game:
             tenth_frame = True
 
         self.obh.update_objects()
-
         self.obh.handle_objects()
 
         game = self.obh.handle_obstacles()
 
         if game == False:
-            self.on_quit()
+            self.is_running = False
+
+        self.obh.create_obstacle(self.globalCounter)
 
         self.obh.handle_moving()
 
         self.clock.tick(self.fps_lim)
 
     def on_render(self):
+        """Render any objects currently in the Scene"""
         self.surface.fill(self.black)
         self.obh.render(self.surface)
 
     def on_quit(self):
+        """Exit the game; close the program"""
         pygame.quit()
-        sys.exit()
+        #sys.exit()
 
-    def on_execute(self):
+    def on_execute(self, paused:bool=False):
+        """The gameloop; run events, run the loop, render objects,
+and check if the program should close."""
         if self.is_running:
-            self.globalCounter += 1
+            if paused == False:
+                self.globalCounter += 1
             for event in pygame.event.get():
-                self.on_event(event)
-            self.on_loop()
+                self.on_event(event, paused)
+            self.on_loop(paused)
             self.on_render()
         else:
             self.on_quit()
@@ -134,11 +145,19 @@ class Game:
     def get_status(self):
         return self.status
 
-    def new_scene(self, title, size:tuple, fps_limit:int):
+    def new_scene(self, title, size:tuple, fps_limit:int, custom_status=False):
+        """Create a new scene. This can edit the existing window by
+changing the title, dimensions and FPS limit, and resets all existing
+objects."""
         self.title = title
         self.size = self.width, self.height = size
         self.is_running = True
         self.fps_lim = fps_limit
+
+        if custom_status == False:
+            self.status = self.title
+        else:
+            self.status = custom_status
 
         self.surface = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         pygame.display.set_caption(self.title)

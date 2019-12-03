@@ -3,6 +3,8 @@ import pygame
 import numpy as np
 import math
 
+import random
+
 class ObjectHandler:
     def __init__(self):
         #Object lists used to group object types together
@@ -14,15 +16,22 @@ class ObjectHandler:
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
         self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
-        
-        self.obstacle_types = [] #The types of obstacles that can be created
 
-        #Handle obstacle arrangements here
+        self.previous_obstacle = None #The last obstacle generated; used for positioning the next obstacle.
+
+        self.obstacle_types = [] #The types of obstacles that can be created
+        self.formations = [] #Arrangements of obstacles using coordinates
+
+        self.playerpos = []
+        self.curpos = None
+        self.counter = 0
         
         #Player variables
         self.player = None #The current Player object
         self.player_grounded = False
         self.player_g_cnt = 0
+
+        self.playerpos_on_ground = 100, 380, 20, 20 #Player jumps 109 pixels up at its peak (-109 y)
         
         #Colours
         self.white = (255, 255, 255)
@@ -57,6 +66,19 @@ class ObjectHandler:
                 self.player_g_cnt = 0
 
             else:
+                self.playerpos.append(self.player.get_rect()) #Researching max point of jump (START)
+                self.counter += 1
+                print(self.counter)
+
+                if self.counter == 100:
+                    self.curpos = self.player.get_rect()
+                    for x in self.playerpos:
+                        if x < self.curpos:
+                            self.curpos = x
+                
+                if self.curpos is not None:
+                    print(self.playerpos_on_ground[1] - self.curpos.y) #(END of research) Player jumps -109y
+
                 if self.player_g_cnt == 5:
                     self.player.accelerate('y', 2)
                     self.player_g_cnt = 0
@@ -144,11 +166,13 @@ class ObjectHandler:
                     ui.set_hovering(ui.get_rect().collidepoint(x,y))
 
                 if return_name:
-                    return ui.get_rect().collidepoint(x,y), ui.get_name()
+                    if ui.get_rect().collidepoint(x,y):
+                        return ui.get_name()
                 else:
-                    return ui.get_rect().collidepoint(x,y)
+                    if ui.get_rect().collidepoint(x,y):
+                        return True
         else:
-            return None, None
+            return False
 
     def add_ui(self, ui):
         "Add a UI element."
@@ -178,6 +202,7 @@ class ObjectHandler:
         self.player = player
 
     def handle_jumping(self, jump:bool):
+
         if jump:
             if self.player_grounded == True:
                 p = self.player.get_rect()
@@ -216,27 +241,33 @@ class ObjectHandler:
             m.set_component_velocity('x', -self.object_speed)
         
     #Obstacles
+
+    def create_obstacle_floor(self, object):
+        """Creates a floor that acts as an obstacle if touched on the side or the bottom."""
+        pass
+
     def create_obstacle(self, timer):
         """Create obstacles based on the global timer."""
-        if timer % 20 == 0:
-            obstacle = Object((1000, 400, 200, 200), self.white)
-            self.add_object(obstacle)
-            self.add_moving(obstacle)
-            self.add_obstacle(obstacle)
+        if timer % 60 == 0:
+            if len(self.obstacles) < 100:
+                obstacle = Object((1000, random.randint(200,600), random.randint(0,200), random.randint(0,50)), self.white)
+                self.add_object(obstacle)
+                self.add_moving(obstacle)
+                self.add_obstacle(obstacle)
         
-    def handle_obstacles(self, globalCounter):
-        self.create_obstacle(globalCounter)
+    def handle_obstacles(self):
         o_rects = [o.get_rect() for o in self.obstacles]
-        for r in o_rects:
-            if r.colliderect(self.player.get_rect()):
-                return False
-        return True
+        if self.player is not None:
+            for r in o_rects:
+                if r.colliderect(self.player.get_rect()):
+                    return False
+            return True
     
-    def add_obstacle_type(self, obstacle):
-        self.obstacle_types.append(obstacle)
+    def set_obstacle_types(self, obstacle_types):
+        self.obstacle_types = obstacle_types
         
-    def remove_obstacle_type(self, obstacle):
-        self.obstacle_types.remove(obstacle)
+    def set_formations(self, formations):
+        self.formations = formations
 
     #---------------------------------------------------------------------------------
     #Rendering
