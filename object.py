@@ -4,6 +4,7 @@ import numpy as np
 import math
 
 import random
+from obstacle_generator import ObjectGenerator
 
 class ObjectHandler:
     def __init__(self):
@@ -15,16 +16,16 @@ class ObjectHandler:
         #Obstacles and moving objects
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
-        self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
+        self.object_speed = 2 #The speed at which the moving objects move (pixels per frame)
+
+        self.obg = ObjectGenerator(self) #The ObjectGenerator
 
         self.previous_obstacle = None #The last obstacle generated; used for positioning the next obstacle.
 
         self.obstacle_types = [] #The types of obstacles that can be created
         self.formations = [] #Arrangements of obstacles using coordinates
 
-        self.playerpos = []
-        self.curpos = None
-        self.counter = 0
+        self.score = None
         
         #Player variables
         self.player = None #The current Player object
@@ -47,6 +48,11 @@ class ObjectHandler:
 
         x, y = pygame.mouse.get_pos()
         for ui in self.ui:
+
+            if self.score is not None:
+                cur_score = int(self.score.get_textobj().get_text())
+                self.score.get_textobj().set_text(str(cur_score + 1))
+
             if ui.get_hovering():
                 if ui.get_rect().collidepoint(x, y):
                     ui.fade(20)
@@ -66,18 +72,6 @@ class ObjectHandler:
                 self.player_g_cnt = 0
 
             else:
-                self.playerpos.append(self.player.get_rect()) #Researching max point of jump (START)
-                self.counter += 1
-                print(self.counter)
-
-                if self.counter == 100:
-                    self.curpos = self.player.get_rect()
-                    for x in self.playerpos:
-                        if x < self.curpos:
-                            self.curpos = x
-                
-                if self.curpos is not None:
-                    print(self.playerpos_on_ground[1] - self.curpos.y) #(END of research) Player jumps -109y
 
                 if self.player_g_cnt == 5:
                     self.player.accelerate('y', 2)
@@ -157,6 +151,9 @@ class ObjectHandler:
     def get_objects(self):
         return self.objects
 
+    def create_object(self, rect, colour, width:int=0, image=None):
+        return Object(rect, colour, width, image)
+
     #Button Objects
     def check_hovering(self, x, y, return_name:bool=False, update_button:bool=False):
         """Check if the cursor is hovering over a UI element."""
@@ -183,7 +180,12 @@ class ObjectHandler:
         self.ui.remove(ui)
 
     def get_ui(self):
+        "Returns all of the UI elements."
         return self.ui
+
+    def set_score_counter(self, score_counter):
+        "Sets the UI object that will increment every time the player's score increases."
+        self.score = score_counter
 
     #Objects that act as Ground
     def add_ground(self, object):
@@ -200,6 +202,9 @@ class ObjectHandler:
     def set_player(self, player):
         """Sets the object that acts as the player."""
         self.player = player
+
+    def get_player(self):
+        return self.player
 
     def handle_jumping(self, jump:bool):
 
@@ -230,30 +235,28 @@ class ObjectHandler:
     def remove_obstacle(self, obstacle):
         self.obstacles.remove(obstacle)
 
+    def get_moving_speed(self):
+        return self.object_speed
+
     def add_moving(self, moving):
         self.moving.append(moving)
 
     def remove_moving(self, moving):
         self.moving.remove(moving)
+
+    def get_moving(self):
+        return self.moving
         
     def handle_moving(self):
         for m in self.moving:
             m.set_component_velocity('x', -self.object_speed)
+
+    def generate_ground(self, timer):
+        """Create ground based on the global timer."""
+        if timer % 47 == 0:
+            self.obg.generate_obstacle(self)
         
     #Obstacles
-
-    def create_obstacle_floor(self, object):
-        """Creates a floor that acts as an obstacle if touched on the side or the bottom."""
-        pass
-
-    def create_obstacle(self, timer):
-        """Create obstacles based on the global timer."""
-        if timer % 60 == 0:
-            if len(self.obstacles) < 100:
-                obstacle = Object((1000, random.randint(200,600), random.randint(0,200), random.randint(0,50)), self.white)
-                self.add_object(obstacle)
-                self.add_moving(obstacle)
-                self.add_obstacle(obstacle)
         
     def handle_obstacles(self):
         o_rects = [o.get_rect() for o in self.obstacles]
@@ -268,6 +271,12 @@ class ObjectHandler:
         
     def set_formations(self, formations):
         self.formations = formations
+
+    #Floor Collision
+
+    def get_floor(self):
+        if self.ground != []:
+            return self.ground[0]
 
     #---------------------------------------------------------------------------------
     #Rendering
@@ -292,6 +301,12 @@ class TextObject:
         self.default_colour = np.array(colour)
         self.antialias = antialias
         self.bg = background
+
+    def set_text(self, newtext):
+        self.text = newtext
+
+    def get_text(self):
+        return self.text
 
 class Object:
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=0, image=None):

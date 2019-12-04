@@ -101,13 +101,12 @@ handling is ordered"""
 
         self.obh.update_objects()
         self.obh.handle_objects()
+        self.obh.generate_ground(self.globalCounter)
 
         game = self.obh.handle_obstacles()
 
         if game == False:
             self.is_running = False
-
-        self.obh.create_obstacle(self.globalCounter)
 
         self.obh.handle_moving()
 
