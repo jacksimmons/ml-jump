@@ -12,11 +12,14 @@ class ObjectHandler:
         self.objects = [] #All of the Objects currently on stage (should include all of the below)
         self.ui = [] #All of the Buttons currently on stage (must inherit from UI)
         self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
+        self.floor = None
 
         #Obstacles and moving objects
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
-        self.object_speed = 2 #The speed at which the moving objects move (pixels per frame)
+        self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
+        self.jump_strength = 8 #How powerful the player's jump is
+        self.g_strength = -3 #The acceleration due to gravity that the player receives
 
         self.obg = ObjectGenerator(self) #The ObjectGenerator
 
@@ -26,14 +29,15 @@ class ObjectHandler:
         self.formations = [] #Arrangements of obstacles using coordinates
 
         self.score = None
-        
+
         #Player variables
         self.player = None #The current Player object
         self.player_grounded = False
+        self.player_floored = False
         self.player_g_cnt = 0
 
         self.playerpos_on_ground = 100, 380, 20, 20 #Player jumps 109 pixels up at its peak (-109 y)
-        
+
         #Colours
         self.white = (255, 255, 255)
 
@@ -74,16 +78,19 @@ class ObjectHandler:
             else:
 
                 if self.player_g_cnt == 5:
-                    self.player.accelerate('y', 2)
+                    self.player.accelerate('y', -self.g_strength)
                     self.player_g_cnt = 0
 
                 self.player_g_cnt += 1
 
             p = self.player.get_rect()
-            if p.y <= self.ground[0].get_rect().y:
-                #If the player's y position is less than the object's y position (i.e. above it):
+            print(p.y)
+            print(self.get_floor().get_y())
+            if p.y + p.h < self.get_floor().get_y():
+                #If the player's y position is less than the floor's y position (i.e. above it):
 
                 self.player_grounded = False
+                self.player_floored = False
                 #If none of the ground objects are touching the player, this default value of player_grounded will be used.
                 for g in self.ground:
 
@@ -97,12 +104,16 @@ class ObjectHandler:
                         self.player.set_component_velocity('y', 0)
                         self.upwarp(p, r)
                         self.player_grounded = True
-                
+
                     if r.colliderect(p.x, p.y + self.player.get_component_velocity('y'), p.w, p.h):
                         #If the object will go through the ground on the next frame, it must stop immediately.
                         #This works both for going downwards through a floor and upwards through a floor (ceiling).
                         self.player.set_component_velocity('y', 0)
                         self.downwarp(p, r)
+
+            elif p.y + p.h == self.get_floor().get_y():
+                self.player_grounded = True
+                self.player_floored = True
 
         for object in self.objects:
 
@@ -110,7 +121,7 @@ class ObjectHandler:
 
             r = object.get_rect()
             sx, sy = pygame.display.get_surface().get_size()
-            
+
             if object is not self.player:
                 if r.x + r.w < 0:
                     self.objects.remove(object)
@@ -214,7 +225,7 @@ class ObjectHandler:
 
                 self.player.set_rect(pygame.Rect(p.x, p.y-1, p.w, p.h))
                 #Move the player 1 pixel up so the program doesn't think they are still on the ground
-                self.player.accelerate('y', -8)
+                self.player.accelerate('y', -self.jump_strength)
                 return True
             return False
 
@@ -246,18 +257,17 @@ class ObjectHandler:
 
     def get_moving(self):
         return self.moving
-        
+
     def handle_moving(self):
         for m in self.moving:
             m.set_component_velocity('x', -self.object_speed)
 
     def generate_ground(self, timer):
         """Create ground based on the global timer."""
-        if timer % 47 == 0:
-            self.obg.generate_obstacle(self)
-        
+        self.obg.handle_generation(self)
+
     #Obstacles
-        
+
     def handle_obstacles(self):
         o_rects = [o.get_rect() for o in self.obstacles]
         if self.player is not None:
@@ -265,18 +275,23 @@ class ObjectHandler:
                 if r.colliderect(self.player.get_rect()):
                     return False
             return True
-    
+
     def set_obstacle_types(self, obstacle_types):
         self.obstacle_types = obstacle_types
-        
+
     def set_formations(self, formations):
         self.formations = formations
 
     #Floor Collision
 
     def get_floor(self):
-        if self.ground != []:
-            return self.ground[0]
+        if self.floor is not None:
+            return self.floor
+        else:
+            return self.ground[0] #If no floor can be found, resort to the first rendered ground object.
+
+    def set_floor(self, floor):
+        self.floor = floor
 
     #---------------------------------------------------------------------------------
     #Rendering
@@ -303,13 +318,15 @@ class TextObject:
         self.bg = background
 
     def set_text(self, newtext):
+        "Set the assigned text"
         self.text = newtext
 
     def get_text(self):
+        "Get the assigned text"
         return self.text
 
 class Object:
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=0, image=None):
+    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=5, image=None):
         self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
         self.colour = np.array(colour) #A 24-bit tuple to display colour
         self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
@@ -320,15 +337,35 @@ class Object:
         self.v_velocity = 0 #Vertical velocity
 
     def set_rect(self, rect:pygame.Rect):
+        "Set the rectangular position of the object"
         self.rect = rect
 
     def get_rect(self):
+        "Get the rectangular position of the object"
         return self.rect
 
+    def get_x(self):
+        "Get the x ('left') component of the object's rect"
+        return self.rect.x
+
+    def get_y(self):
+        "Get the y ('top') component of the object's rect"
+        return self.rect.y
+
+    def get_w(self):
+        "Get the w ('width') component of the object's rect"
+        return self.rect.w
+
+    def get_h(self):
+        "Get the h ('height') component of the object's rect"
+        return self.rect.h
+
     def set_centre(self, x:int, y:int):
+        "Set the object's rect's centre"
         self.rect.center = (x, y)
 
     def set_axis_to_centre(self, axis=None):
+        "Set the object's rect's x or y component's centre"
         surface = pygame.display.get_surface()
         if surface is not None:
             if axis == 'x':
@@ -343,68 +380,59 @@ class Object:
             print("No surface found.")
 
     def set_colour(self, colour:pygame.Color):
+        "Set the colour of the rect"
         self.colour = colour
 
     def get_colour(self):
+        "Get the colour of the rect"
         return self.colour
 
     def get_default_colour(self):
+        "Get the default colour of the rect (i.e. the colour it was created with)"
         return self.default_colour
 
     def colour_is_default(self):
+        "Check if the rect's colour is equal to its default_colour"
         return np.all(self.colour == self.default_colour)
 
     def move(self, velocity):
+        "Move the object by a tuple of x and y velocity"
         if isinstance(velocity, tuple):
             h_velocity = velocity[0]
             v_velocity = velocity[1]
             self.rect = self.rect.move(h_velocity, v_velocity)
 
     def set_component_velocity(self, component, velocity):
+        "Set the x/y velocity of the object"
         if component == 'x':
             self.h_velocity = velocity
         elif component == 'y':
             self.v_velocity = velocity
 
     def get_component_velocity(self, component):
+        "Get the x/y velocity of the object"
         if component == 'x':
             return self.h_velocity
         elif component == 'y':
             return self.v_velocity
 
     def set_velocity(self, velocity):
+        "Set the velocity of the object with a tuple"
         if isinstance(velocity, tuple):
             self.h_velocity, self.v_velocity = velocity
         else:
             print("Not a tuple. Use set_component_velocity()")
 
     def get_velocity(self):
+        "Get both the x and y velocities of the object"
         return (self.h_velocity, self.v_velocity)
 
     def accelerate(self, direction, acceleration):
+        "Increase the x/y velocity by an integer amount"
         if direction == 'x':
             self.h_velocity += acceleration
         elif direction == 'y':
             self.v_velocity += acceleration
-
-    def set_mass(self, mass:int):
-        self.mass = mass
-
-    def get_weight(self):
-        return self.mass * 9.81
-
-    def apply_force(self, magnitude:float, bearing:int, unit_is_degrees:bool=False):
-
-        magnitude = round(magnitude)
-
-        if unit_is_degrees and 0 <= bearing < 360:
-            x = magnitude * math.cos(math.radians(bearing)) #Conversion of degrees to radians, as python handles sin in radians.
-            y = magnitude * math.sin(math.radians(bearing)) #Degrees -> Radians: Divide by 180, multiply by pi
-        elif 0 <= bearing < math.pi:
-            x = magnitude * math.cos(bearing)
-            y = magnitude * math.sin(bearing)
-
-        self.rect = self.rect.move(x, y)
 
 class UI(Object): #A normal object, with a TextObject assigned to it to allow it to be a functioning UI element.
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, name=None, textobj:TextObject=None, width:int=0, image=None):
@@ -415,21 +443,27 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
         self.mouse_is_hovering = False
 
     def set_textobj(self, textobj):
+        "Set the TextObject"
         self.textobj = textobj
 
     def get_textobj(self):
+        "Get the TextObject"
         return self.textobj
 
     def get_name(self):
+        "Get the name - differentiates the UI object from others"
         return self.name
 
     def set_hovering(self, mouse_is_hovering:bool):
+        "Set the mouse_is_hovering attribute"
         self.mouse_is_hovering = mouse_is_hovering
 
     def get_hovering(self):
+        "Get the mouse_is_hovering attribute"
         return self.mouse_is_hovering
 
     def fade(self, degree:int, minimum_ratio:int=0.3):
+        "Fade a UI object's colour (useful for when the mouse is hovering over a button)"
         skip = False
 
         if np.any((self.colour - self.default_colour / degree) < self.default_colour * minimum_ratio):
@@ -443,6 +477,7 @@ class UI(Object): #A normal object, with a TextObject assigned to it to allow it
             self.colour = self.colour - self.default_colour / degree
 
     def unfade(self, degree:int, maximum_ratio:int=1):
+        "Unfade a UI object's colour - the reverse of fade."
         skip = False
 
         if np.any((self.colour + self.default_colour / degree) > self.default_colour * maximum_ratio):

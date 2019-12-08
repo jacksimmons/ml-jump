@@ -14,13 +14,6 @@ game = None
 obstacle_types = []
 formations = []
 
-with open("data/obstacles.json", "r") as f:
-    obstacles = json.load(f)
-    for o in obstacles["OBJECTS"]:
-        obstacle_types.append(o)
-    for p in obstacles["FORMATIONS"]:
-        formations.append(p)
-
 while running:
 
     #-----------------
@@ -35,7 +28,7 @@ while running:
 
             opt = Tk()
             #https://grokbase.com/t/python/python-win32/10c21rbqp0/prevent-a-tkinter-window-from-maximizing-via-win32-api-call
-            opt.wm_resizable(False, False)            
+            opt.wm_resizable(False, False)
             opt.geometry("250x200")
             opt.title("Options")
 
@@ -51,7 +44,7 @@ while running:
     #Create a display window
     dim = dw, dh = 500, 500 #Display's width and height
 
-    game = Game("Title", 200, 200, 60)
+    game = Game("Title", 1920, 200, 60)
     red, green, blue, white, black = game.get_colours()
 
     obh = game.get_obh()
@@ -102,15 +95,15 @@ while running:
 
     #Create the floor
 
-    floor = Object((0, 400, 600, 10), green)
+    floor = Object((0, 700, 1280, 10), green)
 
     obh.add_object(floor)
     obh.add_ground(floor)
+    obh.set_floor(floor)
 
     #Create the score counter
 
     score_counter = TextObject("0", menu_font, red)
-
     score = UI((0, 100, 100, 100), black, None, score_counter)
 
     obh.add_object(score)

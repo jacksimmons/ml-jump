@@ -63,7 +63,7 @@ class Game:
                 else:
                     #Buttons on the Title Screen
                     if name == 'TITLE_PLAY':
-                        self.new_scene("Game", (640, 480), 60)
+                        self.new_scene("Game", (1280, 720), 60)
                         self.status = "Game"
                     elif name == 'TITLE_OPTIONS':
                         self.status = "Options"
