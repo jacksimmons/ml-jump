@@ -23,11 +23,6 @@ class ObjectHandler:
 
         self.obg = ObjectGenerator(self) #The ObjectGenerator
 
-        self.previous_obstacle = None #The last obstacle generated; used for positioning the next obstacle.
-
-        self.obstacle_types = [] #The types of obstacles that can be created
-        self.formations = [] #Arrangements of obstacles using coordinates
-
         self.score = None
 
         #Player variables
@@ -35,8 +30,6 @@ class ObjectHandler:
         self.player_grounded = False
         self.player_floored = False
         self.player_g_cnt = 0
-
-        self.playerpos_on_ground = 100, 380, 20, 20 #Player jumps 109 pixels up at its peak (-109 y)
 
         #Colours
         self.white = (255, 255, 255)
@@ -136,13 +129,15 @@ class ObjectHandler:
                     del object
 
     def add_object(self, object):
+        "Validate an object"
         self.objects.append(object)
 
     def remove_object(self, object):
+        "Invalidate an object"
         self.objects.remove(object)
 
     def update_objects(self):
-        """Check whether specific types of objects are actually objects themselves."""
+        "Check objects for validity."
         for ui in self.ui:
             if ui not in self.objects:
                 self.ui.remove(ui) #If an object is not in Objects, then it will not be used so it can be silently discarded.
@@ -160,14 +155,16 @@ class ObjectHandler:
                 self.obstacles.remove(o)
 
     def get_objects(self):
+        "Return valid objects"
         return self.objects
 
     def create_object(self, rect, colour, width:int=0, image=None):
+        "Tool for generating an Object"
         return Object(rect, colour, width, image)
 
     #Button Objects
     def check_hovering(self, x, y, return_name:bool=False, update_button:bool=False):
-        """Check if the cursor is hovering over a UI element."""
+        "Check if the cursor is hovering over a UI element."
         if self.ui != []:
             for ui in self.ui:
                 if update_button:
@@ -183,42 +180,41 @@ class ObjectHandler:
             return False
 
     def add_ui(self, ui):
-        "Add a UI element."
+        "Validate a UI element"
         self.ui.append(ui)
 
     def remove_ui(self, ui):
-        "Remove a UI element."
+        "Invalidate a UI element"
         self.ui.remove(ui)
 
     def get_ui(self):
-        "Returns all of the UI elements."
+        "Return all valid UI elements"
         return self.ui
 
     def set_score_counter(self, score_counter):
-        "Sets the UI object that will increment every time the player's score increases."
+        "Set the UI object that will increment every time the player's score increases"
         self.score = score_counter
 
     #Objects that act as Ground
     def add_ground(self, object):
-        """Add a Ground object."""
-        self.objects.append(object)
+        "Validate a Ground object"
         self.ground.append(object)
 
     def remove_ground(self, object):
-        """Remove a Ground object."""
-        self.objects.remove(object)
+        "Invalidate a Ground object"
         self.ground.remove(object)
 
     #Player Objects
     def set_player(self, player):
-        """Sets the object that acts as the player."""
+        "Set the player object"
         self.player = player
 
     def get_player(self):
+        "Return the player object"
         return self.player
 
     def handle_jumping(self, jump:bool):
-
+        "Check whether the player has jumped, and executes the jump if so"
         if jump:
             if self.player_grounded == True:
                 p = self.player.get_rect()
@@ -230,45 +226,54 @@ class ObjectHandler:
             return False
 
     def upwarp(self, p:pygame.Rect, g:pygame.Rect):
+        "Moves the player upwards until they are above the provided Ground"
         while p.y > g.y - p.h:
             p.y -= 1
         self.player.set_rect(p)
 
     def downwarp(self, p:pygame.Rect, g:pygame.Rect):
+        "Moves the player downwards until they are below the provided Ground"
         while p.y + p.h < g.y:
             p.y += 1
         self.player.set_rect(p)
 
     #Moving objects
     def add_obstacle(self, obstacle):
+        "Validate an obstacle"
         self.obstacles.append(obstacle)
 
     def remove_obstacle(self, obstacle):
+        "Invalidate an obstacle"
         self.obstacles.remove(obstacle)
 
     def get_moving_speed(self):
+        "Return the default object movement speed"
         return self.object_speed
 
     def add_moving(self, moving):
+        "Validate a moving object"
         self.moving.append(moving)
 
     def remove_moving(self, moving):
+        "Invalidate a moving object"
         self.moving.remove(moving)
 
     def get_moving(self):
+        "Return all valid moving objects"
         return self.moving
 
     def handle_moving(self):
+        "Handle object movement"
         for m in self.moving:
             m.set_component_velocity('x', -self.object_speed)
 
     def generate_ground(self, timer):
-        """Create ground based on the global timer."""
+        "Generate ground randomly based on the player's position"
         self.obg.handle_generation(self)
 
     #Obstacles
-
     def handle_obstacles(self):
+        "Handle obstacle collision with the player"
         o_rects = [o.get_rect() for o in self.obstacles]
         if self.player is not None:
             for r in o_rects:
@@ -276,21 +281,16 @@ class ObjectHandler:
                     return False
             return True
 
-    def set_obstacle_types(self, obstacle_types):
-        self.obstacle_types = obstacle_types
-
-    def set_formations(self, formations):
-        self.formations = formations
-
     #Floor Collision
-
     def get_floor(self):
+        "Return the floor if possible, otherwise return the first ground object validated"
         if self.floor is not None:
             return self.floor
         else:
             return self.ground[0] #If no floor can be found, resort to the first rendered ground object.
 
     def set_floor(self, floor):
+        "Set the floor object"
         self.floor = floor
 
     #---------------------------------------------------------------------------------
@@ -298,6 +298,7 @@ class ObjectHandler:
     #---------------------------------------------------------------------------------
 
     def render(self, surface):
+        "Handles all rendering"
         for object in self.objects:
             pygame.draw.rect(surface, object.get_colour(), object.get_rect())
 
