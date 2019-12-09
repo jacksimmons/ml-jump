@@ -4,11 +4,8 @@ from pygame.locals import *
 from object import *
 #TextObject, Object, Player, UI, Obstacle
 
-import numpy as np
-import math
-import sys
-
 class Game:
+    "The master class - controls the ObjectHandler"
     #Source tutorial: http://pygametutorials.wikidot.com/tutorials-basic
     def __init__(self, title, width, height, fps_lim):
 
@@ -81,8 +78,7 @@ class Game:
                     self.jumping = False
 
     def on_loop(self, paused):
-        """The standard loop method where all object and physics
-handling is ordered"""
+        "The standard loop method where all object and physics handling is done"
 
         if self.jumping:
             if self.jump_counter > 0:
@@ -91,40 +87,32 @@ handling is ordered"""
                 jumped = self.obh.handle_jumping(True)
                 if jumped:
                     self.jump_counter = 1
-
         else:
             self.jump_counter = 0
 
-        tenth_frame = False
-        if self.globalCounter % (self.fps_lim/10) == 0:
-            tenth_frame = True
-
         self.obh.update_objects()
         self.obh.handle_objects()
+        self.obh.handle_moving()
         self.obh.generate_ground(self.globalCounter)
+        
+        self.clock.tick(self.fps_lim)
 
         game = self.obh.handle_obstacles()
 
         if game == False:
             self.is_running = False
 
-        self.obh.handle_moving()
-
-        self.clock.tick(self.fps_lim)
-
     def on_render(self):
-        """Render any objects currently in the Scene"""
+        "Render any valid objects"
         self.surface.fill(self.black)
         self.obh.render(self.surface)
 
     def on_quit(self):
-        """Exit the game; close the program"""
+        "Exit the game; close the program"
         pygame.quit()
-        #sys.exit()
 
     def on_execute(self, paused:bool=False):
-        """The gameloop; run events, run the loop, render objects,
-and check if the program should close."""
+        "The gameloop; run events, run the loop, render objects and check if the program should close."
         if self.is_running:
             if paused == False:
                 self.globalCounter += 1
@@ -135,18 +123,17 @@ and check if the program should close."""
         else:
             self.on_quit()
 
-    def set_title(self, new_title):
-        self.title = new_title
-
     def get_title(self):
+        "Return the Window name"
         return self.title
 
     def get_status(self):
+        "Return the Game status"
         return self.status
 
     def new_scene(self, title, size:tuple, fps_limit:int, custom_status=False):
-        """Create a new scene. This can edit the existing window by
-changing the title, dimensions and FPS limit, and resets all existing
+        """Create a new scene. This edits the existing window by
+changing the title, dimensions and FPS limit, and resetting all existing
 objects."""
         self.title = title
         self.size = self.width, self.height = size
@@ -163,21 +150,10 @@ objects."""
 
         self.obh.cleanup()
 
-    #def locate_active_ground(self):
-#        x, y, w, h = self.player.get_rect()
-#        temp = Object((x, y, 1, 1), self.green)
-#        for g in self.ground:
-#            if temp.get_rect().colliderect(g.get_rect()):
-#                break
-#        print(temp.get_rect())
-#        if self.player_in_ground:
-#            temp.move((0,1))
-#        else:
-#            temp.move((0,-1))
-#        return temp.get_rect().y
-
     def get_obh(self):
+        "Return the ObjectHandler object associated with the Game"
         return self.obh
 
     def get_colours(self):
+        "Return some useful default colours"
         return self.red, self.green, self.blue, self.white, self.black
