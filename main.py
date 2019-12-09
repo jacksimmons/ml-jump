@@ -1,18 +1,11 @@
 import pygame
 from tkinter import *
-import numpy as np
 
-import json
-
-#import auth
 from scenario import *
 from object import *
 
 running = True
 game = None
-
-obstacle_types = []
-formations = []
 
 while running:
 
@@ -100,6 +93,7 @@ while running:
     obh.add_object(floor)
     obh.add_ground(floor)
     obh.set_floor(floor)
+    floor.set_axis_to_centre('x')
 
     #Create the score counter
 
@@ -109,28 +103,6 @@ while running:
     obh.add_object(score)
     obh.add_ui(score)
     obh.set_score_counter(score)
-
-    #Create the obstacles
-
-    #obstacle = Object((600, 350, 200, 10), blue)
-
-    #obh.add_object(obstacle)
-    #obh.add_moving(obstacle)
-    #obh.add_ground(obstacle)
-
-    #obstacle2 = Object((800, 275, 200, 10), red)
-
-    #obh.add_object(obstacle2)
-    #obh.add_moving(obstacle2)
-    #obh.add_ground(obstacle2)
-
-    #obstacle3 = Object((1000, 200, 200, 10), white)
-
-    #obh.add_object(obstacle3)
-    #obh.add_moving(obstacle3)
-    #obh.add_ground(obstacle3)
-
-    floor.set_axis_to_centre('x')
 
     #Game Loop
     #-----------------
