@@ -36,8 +36,11 @@ class Game:
 
         #Default colour constants
         self.red = (255, 0, 0)
+        self.yellow = (255, 255, 0)
         self.green = (0, 255, 0)
+        self.cyan = (0, 255, 255)
         self.blue = (0, 0, 255)
+        self.magenta = (255, 0, 255)
         self.white = (255, 255, 255)
         self.black = (0, 0, 0)
 
@@ -59,7 +62,10 @@ class Game:
                         self.new_scene("Title", (200, 200), 60)
                 else:
                     #Buttons on the Title Screen
-                    if name == 'TITLE_PLAY':
+                    if name == 'TITLE_AI':
+                        self.new_scene("AI", (1280, 720), 60)
+                        self.status = "AI"
+                    elif name == 'TITLE_PLAY':
                         self.new_scene("Game", (1280, 720), 60)
                         self.status = "Game"
                     elif name == 'TITLE_OPTIONS':
@@ -156,4 +162,4 @@ objects."""
 
     def get_colours(self):
         "Return some useful default colours"
-        return self.red, self.green, self.blue, self.white, self.black
+        return self.red, self.yellow, self.green, self.cyan, self.blue, self.magenta, self.white, self.black

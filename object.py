@@ -10,25 +10,30 @@ class ObjectHandler:
     def __init__(self):
         #Object lists used to group object types together
         self.objects = [] #All of the Objects currently on stage (should include all of the below)
-        self.ui = [] #All of the Buttons currently on stage (must inherit from UI)
         self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
         self.floor = None
 
-        #Obstacles and moving objects
+        #Obstacles and physics
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
-        self.object_speed = 5 #The speed at which the moving objects move (pixels per frame)
+        self.object_speed = 5 #The speed at which the moving objects move left (pixels per frame)
         self.jump_strength = 8 #How powerful the player's jump is
-        self.g_strength = -3 #The acceleration due to gravity that the player receives
+        self.g_strength = -3 #The acceleration due to gravity that the player receives (i.e. gravitational strength)
 
         self.obg = ObjectGenerator(self) #The ObjectGenerator
 
+        #UI elements
+        self.ui = [] #All of the Buttons currently on stage (must inherit from UI)
+        self.display_pos = None
+        self.display_grounded = None
+        self.display_floored_cnt = None
         self.score = None
 
         #Player variables
         self.player = None #The current Player object
         self.player_grounded = False
         self.player_floored = False
+        self.player_floored_cnt = 0
         self.player_g_cnt = 0
 
         #Colours
@@ -47,8 +52,27 @@ class ObjectHandler:
         for ui in self.ui:
 
             if self.score is not None:
-                cur_score = int(self.score.get_textobj().get_text())
-                self.score.get_textobj().set_text(str(cur_score + 1))
+                cur_score = int(self.score.get_textobj().get_text()[7:])
+                self.score.get_textobj().set_text("Score: " + str(cur_score + 1))
+
+            if self.display_pos is not None and self.player is not None:
+                self.display_pos.get_textobj().set_text("Player Rect: " + str(self.player.get_rect()))
+
+            if self.display_grounded is not None:
+                t = self.display_grounded.get_textobj()
+                status = "Airbourne"
+                colour = (255, 0, 255)
+                if self.player_floored:
+                    colour = (0, 255, 0)
+                    status = "Floored"
+                elif self.player_grounded:
+                    colour = (0, 0, 255)
+                    status = "Grounded"
+                t.set_colour(colour)
+                t.set_text("Player Ground Status: " + status)
+
+            if self.display_floored_cnt is not None:
+                self.display_floored_cnt.get_textobj().set_text("Floored Timer: " + str(self.player_floored_cnt))
 
             if ui.get_hovering():
                 if ui.get_rect().collidepoint(x, y):
@@ -77,8 +101,7 @@ class ObjectHandler:
                 self.player_g_cnt += 1
 
             p = self.player.get_rect()
-            print(p.y)
-            print(self.get_floor().get_y())
+
             if p.y + p.h < self.get_floor().get_y():
                 #If the player's y position is less than the floor's y position (i.e. above it):
 
@@ -107,6 +130,7 @@ class ObjectHandler:
             elif p.y + p.h == self.get_floor().get_y():
                 self.player_grounded = True
                 self.player_floored = True
+                self.player_floored_cnt += 1
 
         for object in self.objects:
 
@@ -191,9 +215,23 @@ class ObjectHandler:
         "Return all valid UI elements"
         return self.ui
 
+    #Debugging
+
     def set_score_counter(self, score_counter):
         "Set the UI object that will increment every time the player's score increases"
         self.score = score_counter
+
+    def set_player_pos_disp(self, player_pos):
+        "Set the UI object that will display the player's position"
+        self.display_pos = player_pos
+
+    def set_player_grounded_disp(self, player_grounded):
+        "Set the UI object that will display whether the player is airbourne, grounded or floored."
+        self.display_grounded = player_grounded
+
+    def set_player_floored_cnt_disp(self, pfc):
+        "Set the UI object that will display the player_floored_cnt attribute"
+        self.display_floored_cnt = pfc
 
     #Objects that act as Ground
     def add_ground(self, object):
@@ -326,6 +364,14 @@ class TextObject:
         "Get the assigned text"
         return self.text
 
+    def set_colour(self, colour):
+        "Set the colour of the assigned text"
+        self.colour = colour
+
+    def get_colour(self, colour):
+        "Get the colour of the assigned text"
+        return self.colour
+
 class Object:
     def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=5, image=None):
         self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
@@ -360,6 +406,13 @@ class Object:
     def get_h(self):
         "Get the h ('height') component of the object's rect"
         return self.rect.h
+
+    def set_axis_centre(self, axis, pos:int):
+        "Sets the object's x or y centre"
+        if axis == "x":
+            self.rect.centerx = pos
+        elif axis == "y":
+            self.rect.centery = pos
 
     def set_centre(self, x:int, y:int):
         "Set the object's rect's centre"
