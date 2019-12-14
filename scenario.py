@@ -34,6 +34,9 @@ class Game:
         #Object Handler
         self.obh = ObjectHandler() #ObjectHandler object
 
+        #Other variables
+        self.yd_font = pygame.font.SysFont(name='Bahnschrift', size=30, bold=False, italic=False)
+
         #Default colour constants
         self.red = (255, 0, 0)
         self.yellow = (255, 255, 0)
@@ -70,6 +73,8 @@ class Game:
                         self.status = "Game"
                     elif name == 'TITLE_OPTIONS':
                         self.status = "Options"
+                    elif name == 'MAIN_MENU':
+                        self.status = "Title"
                     elif name == 'QUIT':
                         self.is_running = False
 
@@ -106,7 +111,7 @@ class Game:
         game = self.obh.handle_obstacles()
 
         if game == False:
-            self.is_running = False
+            self.new_scene("You Died", self.size, 60, False)
 
     def on_render(self):
         "Render any valid objects"

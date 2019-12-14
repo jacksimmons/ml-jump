@@ -16,9 +16,9 @@ class ObjectHandler:
         #Obstacles and physics
         self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
         self.obstacles = [] #An array of Objects that kill the player on contact.
-        self.object_speed = 5 #The speed at which the moving objects move left (pixels per frame)
+        self.object_speed = 7 #The speed at which the moving objects move left (pixels per frame)
         self.jump_strength = 8 #How powerful the player's jump is
-        self.g_strength = -3 #The acceleration due to gravity that the player receives (i.e. gravitational strength)
+        self.g_strength = -4 #The acceleration due to gravity that the player receives (i.e. gravitational strength)
 
         self.obg = ObjectGenerator(self) #The ObjectGenerator
 

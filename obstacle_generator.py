@@ -1,6 +1,9 @@
 import random
 import math
 import pygame
+import statistics
+
+import numpy as np
 
 class ObjectGenerator:
     def __init__(self, obh):
@@ -43,7 +46,7 @@ class ObjectGenerator:
 
             self.last_obj_type = "SPIKE"
 
-            x = x + w #For most formations, y displacement = 0.
+            x += (sw*2) + w
 
         elif r in range(45, 89):
             #This is a 'Dip' where the player must go down and then back up
@@ -85,7 +88,7 @@ class ObjectGenerator:
 
             self.last_obj_type = "DIP"
 
-            x = x + (w * 7)
+            x += (w * 7)
 
         elif r in range(90, 100):
             #This is a downwards staircase
@@ -107,9 +110,9 @@ class ObjectGenerator:
 
             self.last_obj_type = "DOWN_STAIR"
 
-            x = x + (w * 4) #So that the next generated object is after obj4...
+            x += (w * 4) #So that the next generated object is after obj4...
 
-        return x, sw
+        return x
 
     def handle_generation(self, obh):
         for obj in self.gen_objs:
@@ -123,11 +126,10 @@ class ObjectGenerator:
 
             x, w, h = 1300, 185, 50
             y = fy
-            
+
             if self.gen_objs != []:
-                last_obj_x, last_obj_y, _w, _h = self.gen_objs[len(self.gen_objs)-1].get_rect()
-                del _w
-                del _h
+                newestObj = self.gen_objs[len(self.gen_objs)-1]
+                last_obj_x, last_obj_y = newestObj.get_x(), newestObj.get_y()
             else:
                 last_obj_x, last_obj_y = x, y
 
@@ -150,47 +152,82 @@ class ObjectGenerator:
                 x = x + (w * 4) #So that the next generated object is after obj4...
                 y = fy - (h * 4) #...and in line with it.
 
-                x, sw = self.get_obstacle_type(x, y, w, h, 50)
+                x = self.get_obstacle_type(x, y, w, h, 50)
 
-            elif self.obh.player_floored_cnt > 0 and last_obj_x < dx and self.last_obj_type != "DOWN_STAIR":
+            elif self.obh.player_floored_cnt > 0 and self.last_obj_type != "DOWN_STAIR":
 
-                applied_x = last_obj_x + w
-                x, sw = self.get_obstacle_type(applied_x - 5, last_obj_y, w, h, 50)
-                y = last_obj_y
+                print(self.last_obj_type)
 
-                first_obj = self.obh.create_object((x, last_obj_y, w, h), (255, 255, 0))
-                self.ao(first_obj, True, True, True)
-                self.gen_objs.append(first_obj)
+                if last_obj_x < dx:
+                    applied_x = last_obj_x + w
+                    x = self.get_obstacle_type(applied_x - 5, last_obj_y, w, h, 50)
+                    y = last_obj_y
 
-                x_bounds = [x, x + (w*5)]
-                y_bounds = [lambda y: y-h, lambda y_val: y+h] 
+                    if self.last_obj_type != "DOWN_STAIR": #Catches any "DOWN_STAIR" object types created in the IF statement above
 
-                orects = []
-                colour = (0, 255, 255)
+                        first_obj = self.obh.create_object((x, y, w, h), (255, 255, 0))
+                        self.ao(first_obj, True, True, True)
+                        self.gen_objs.append(first_obj)
 
-                for i in range(5):
-                    y = random.randint(y_bounds[0](y), y_bounds[1](y))
-                    x += w
-                    orects.append((x,y,w,h))
+                        colour = (0, 255, 255)
+                
+                        gen_num = 5 #This should always be odd to ensure the next loop works correctly (the midpoint should be an integer)
+                        midpt = statistics.median(range(gen_num))
 
-                obj0 = self.obh.create_object(orects[0], colour)
-                obj1 = self.obh.create_object(orects[1], colour)
-                obj2 = self.obh.create_object(orects[2], colour)
-                obj3 = self.obh.create_object(orects[3], colour)
-                obj4 = self.obh.create_object(orects[4], colour)
+                        obj_arr = np.zeros((gen_num, gen_num)) #Creates a gen_num by gen_num grid of zeroes
+                        #This will be used to show whether a coordinate is occupied or not, and will be used to determine the next object's position.
 
-                self.gen_objs.append(obj0)
-                self.gen_objs.append(obj1)
-                self.gen_objs.append(obj2)
-                self.gen_objs.append(obj3)
-                self.gen_objs.append(obj4)
+                        #The middle of a (gen_num) indexed array so that the array can represent negative values of displacement
+                        a_x = 0 #The array will represent x values correctly already
+                        a_y = midpt #The array acts as a gen_num x gen_num grid of potential objects
+                
+                        deltaY = 0
 
-                self.ao(obj0, True, True, True)
-                self.ao(obj1, True, True, True)
-                self.ao(obj2, True, True, True)
-                self.ao(obj3, True, True, True)
-                self.ao(obj4, True, True, True)
+                        for i in range(gen_num):
 
-                last_obj = self.obh.create_object((x + w, last_obj_y, w, h), (0, 255, 255))
-                self.ao(last_obj, True, True, True)
-                self.gen_objs.append(last_obj)
+                            if i >= midpt:
+                                if a_y - midpt + gen_num < 0:
+                                    deltaY = -1 #To make this obstacle formation possible, y must go back to the starting point
+
+                            #Convert a_y into true displacement by subtracting midpt from it
+                            if a_y == gen_num - 1:
+                                deltaY = -1
+
+                            elif a_y == 0:
+                                deltaY = 1
+                            
+                            else:
+                                deltaY = random.randint(-1,1) #Whether the y coordinate will go up, down or not change.
+
+                            a_y += deltaY
+                            obj_arr[a_y][a_x] = 1
+                            a_x += 1
+
+                            generatedObjects = {}
+
+                            g_index_y = -midpt
+
+                            for row in obj_arr:
+                                g_index_x = 0
+                                vals = []
+                                for val in row:
+                                    if val == 1:
+                                        vals.append(g_index_x)
+                           
+                                    g_index_x += 1
+
+                                generatedObjects.update({g_index_y: vals})
+                                g_index_y += 1
+
+                            for obj in generatedObjects:
+                                for val in generatedObjects[obj]:
+                                    print(val)
+                                    o = self.obh.create_object((x + w + (w * val-1), y + (h * obj), w, h), colour)
+                                    self.ao(o, True, True, True)
+                                    self.gen_objs.append(o) 
+
+                        x = first_obj.get_x() + (w * gen_num)
+
+                        last_obj = self.obh.create_object((x + w, last_obj_y, w, h), (255, 0, 255))
+                        self.ao(last_obj, True, True, True)
+                        self.gen_objs.append(last_obj)
