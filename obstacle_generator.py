@@ -1,11 +1,12 @@
 import random
-import math
-import pygame
 import statistics
-
+import pygame
 import numpy as np
+import json
+from colour import Colour
 
-class ObjectGenerator:
+
+class ObstacleGenerator:
     def __init__(self, obh):
         self.obh = obh #The ObjectHandler that instantiated this object
         self.gen_objs = [] #All of the generated objects currently on screen
@@ -14,7 +15,12 @@ class ObjectGenerator:
         #Max player jump height = 109 pixels
         #Max player jump width = 47 frames * velocity of moving objects
 
-    def ao(self, object, moving:bool=False, ground:bool=False, obstacle:bool=False): #Add an object to the ObjectHandler (for simplicity)
+        with open("data/obstacles.json", "r") as jsonfile:
+            self.__obstacles: dict = json.load(jsonfile)
+
+
+    # Add object to the ObjectHandler.
+    def add_object(self, object, moving:bool=False, ground:bool=False, obstacle:bool=False):
         self.obh.objects.append(object)
         if moving:
             self.obh.moving.append(object)
@@ -24,93 +30,104 @@ class ObjectGenerator:
             self.obh.obstacles.append(object)
 
     def get_obstacle_type(self, x, y, w, h, sw): #sw - Small width for smaller obstacles
-        r = random.randint(0, 100)
+        # Get random formation
+        formation = self.__obstacles["formations"][random.randrange(0, len(self.__obstacles["formations"]))]["formation"]
 
-        if r in range(0, 44):
-            #This is a basic obstacle, which the player must jump over
-            colour = (255, 0, 0)
-            gnd = self.obh.create_object((x, y, sw, h), colour)
-            gnd2 = self.obh.create_object((x + sw, y, sw, h), colour)
-            spike = self.obh.create_object((x + sw, y - h, 50, h), colour)
-            gnd3 = self.obh.create_object((x + (sw*2), y, w, h), colour)
+        print(formation[1])
+        if formation[0][0] == "x":
+            tl = self.obh.create_object((x, y - h, w, h), Colour.cyan)
+        if formation[0][1] == "x":
+            tr = self.obh.create_object((x + w, y - h, w, h), Colour.cyan)
+        if formation[1][0] == "x":
+            bl = self.obh.create_object((x, y, w, h), Colour.cyan)
+        if formation[1][1] == "x":
+            br = self.obh.create_object((x + w, y, w, h), Colour.cyan)
 
-            self.ao(gnd, True, True, True)
-            self.ao(gnd2, True, True, True)
-            self.ao(spike, True, False, True)
-            self.ao(gnd3, True, True, True)
+        # if r in range(0, 44):
+        #     #This is a basic obstacle, which the player must jump over
+        #     colour = (255, 0, 0)
+        #     gnd = self.obh.create_object((x, y, sw, h), colour)
+        #     gnd2 = self.obh.create_object((x + sw, y, sw, h), colour)
+        #     spike = self.obh.create_object((x + sw, y - h, 50, h), colour)
+        #     gnd3 = self.obh.create_object((x + (sw*2), y, w, h), colour)
 
-            self.gen_objs.append(gnd)
-            self.gen_objs.append(gnd2)
-            self.gen_objs.append(spike)
-            self.gen_objs.append(gnd3)
+        #     self.add_object(gnd, True, True, True)
+        #     self.add_object(gnd2, True, True, True)
+        #     self.add_object(spike, True, False, True)
+        #     self.add_object(gnd3, True, True, True)
 
-            self.last_obj_type = "SPIKE"
+        #     self.gen_objs.append(gnd)
+        #     self.gen_objs.append(gnd2)
+        #     self.gen_objs.append(spike)
+        #     self.gen_objs.append(gnd3)
 
-            x += (sw*2) + w
+        #     self.last_obj_type = "SPIKE"
 
-        elif r in range(45, 89):
-            #This is a 'Dip' where the player must go down and then back up
-            colour = (0, 255, 0)
-            #Where y = starting y
-            gnd = self.obh.create_object((x, y, w, h), colour)
-            gnd2 = self.obh.create_object((x + (w * 6), y, w, h), colour)
-            dip = self.obh.create_object((x + (w * 3) + (w/2 - sw/2), y, sw, h), colour)
+        #     x += (sw*2) + w
 
-            #Where y < starting y and is decreasing:
-            gndd1 = self.obh.create_object((x + w, y + h, w, h), colour)
-            gndd2 = self.obh.create_object((x + (w * 2), y + (h * 2), w, h), colour)
-            gndd3 = self.obh.create_object((x + (w * 3), y + (h * 3), w, h), colour)
+        # elif r in range(45, 89):
+        #     #This is a 'Dip' where the player must go down and then back up
+        #     colour = (0, 255, 0)
+        #     #Where y = starting y
+        #     gnd = self.obh.create_object((x, y, w, h), colour)
+        #     gnd2 = self.obh.create_object((x + (w * 6), y, w, h), colour)
+        #     dip = self.obh.create_object((x + (w * 3) + (w/2 - sw/2), y, sw, h), colour)
 
-            #Where y < starting y but is increasing:
-            gndu1 = self.obh.create_object((x + (w * 4), y + (h * 2), w, h), colour)
-            gndu2 = self.obh.create_object((x + (w * 5), y + h, w, h), colour)
+        #     #Where y < starting y and is decreasing:
+        #     gndd1 = self.obh.create_object((x + w, y + h, w, h), colour)
+        #     gndd2 = self.obh.create_object((x + (w * 2), y + (h * 2), w, h), colour)
+        #     gndd3 = self.obh.create_object((x + (w * 3), y + (h * 3), w, h), colour)
 
-            self.ao(gnd, True, True, True)
-            self.gen_objs.append(gnd)
+        #     #Where y < starting y but is increasing:
+        #     gndu1 = self.obh.create_object((x + (w * 4), y + (h * 2), w, h), colour)
+        #     gndu2 = self.obh.create_object((x + (w * 5), y + h, w, h), colour)
 
-            self.ao(gndd1, True, True, True)
-            self.gen_objs.append(gndd1)
-            self.ao(gndd2, True, True, True)
-            self.gen_objs.append(gndd2)
-            self.ao(gndd3, True, True, True)
-            self.gen_objs.append(gndd3)
+        #     self.add_object(gnd, True, True, True)
+        #     self.gen_objs.append(gnd)
 
-            self.ao(dip, True, False, True)
-            self.gen_objs.append(dip)
+        #     self.add_object(gndd1, True, True, True)
+        #     self.gen_objs.append(gndd1)
+        #     self.add_object(gndd2, True, True, True)
+        #     self.gen_objs.append(gndd2)
+        #     self.add_object(gndd3, True, True, True)
+        #     self.gen_objs.append(gndd3)
 
-            self.ao(gndu1, True, True, True)
-            self.gen_objs.append(gndu1)
-            self.ao(gndu2, True, True, True)
-            self.gen_objs.append(gndu2)
+        #     self.add_object(dip, True, False, True)
+        #     self.gen_objs.append(dip)
 
-            self.ao(gnd2, True, True, True)
-            self.gen_objs.append(gnd2)
+        #     self.add_object(gndu1, True, True, True)
+        #     self.gen_objs.append(gndu1)
+        #     self.add_object(gndu2, True, True, True)
+        #     self.gen_objs.append(gndu2)
 
-            self.last_obj_type = "DIP"
+        #     self.add_object(gnd2, True, True, True)
+        #     self.gen_objs.append(gnd2)
 
-            x += (w * 7)
+        #     self.last_obj_type = "DIP"
 
-        elif r in range(90, 100):
-            #This is a downwards staircase
-            colour = (0, 0, 255)
-            obj = self.obh.create_object((x, y, w, h), colour)
-            obj2 = self.obh.create_object((x + w, y + h, w, h), colour)
-            obj3 = self.obh.create_object((x + (w*2), y + (h*2), w, h), colour)
-            obj4 = self.obh.create_object((x + (w*3), y + (h*3), w, h), colour)
+        #     x += (w * 7)
 
-            self.gen_objs.append(obj)
-            self.gen_objs.append(obj2)
-            self.gen_objs.append(obj3)
-            self.gen_objs.append(obj4)
+        # elif r in range(90, 100):
+        #     #This is a downwards staircase
+        #     colour = (0, 0, 255)
+        #     obj = self.obh.create_object((x, y, w, h), colour)
+        #     obj2 = self.obh.create_object((x + w, y + h, w, h), colour)
+        #     obj3 = self.obh.create_object((x + (w*2), y + (h*2), w, h), colour)
+        #     obj4 = self.obh.create_object((x + (w*3), y + (h*3), w, h), colour)
 
-            self.ao(obj, True, True, True)
-            self.ao(obj2, True, True, True)
-            self.ao(obj3, True, True, True)
-            self.ao(obj4, True, True, True)
+        #     self.gen_objs.append(obj)
+        #     self.gen_objs.append(obj2)
+        #     self.gen_objs.append(obj3)
+        #     self.gen_objs.append(obj4)
 
-            self.last_obj_type = "DOWN_STAIR"
+        #     self.add_object(obj, True, True, True)
+        #     self.add_object(obj2, True, True, True)
+        #     self.add_object(obj3, True, True, True)
+        #     self.add_object(obj4, True, True, True)
 
-            x += (w * 4) #So that the next generated object is after obj4...
+        #     self.last_obj_type = "DOWN_STAIR"
+
+        #     x += (w * 4) #So that the next generated object is after obj4...
 
         return x
 
@@ -144,10 +161,10 @@ class ObjectGenerator:
 
                 self.gen_objs = [obj, obj2, obj3, obj4]
 
-                self.ao(obj, True, True, True)
-                self.ao(obj2, True, True, True)
-                self.ao(obj3, True, True, True)
-                self.ao(obj4, True, True, True)
+                self.add_object(obj, True, True, True)
+                self.add_object(obj2, True, True, True)
+                self.add_object(obj3, True, True, True)
+                self.add_object(obj4, True, True, True)
 
                 x = x + (w * 4) #So that the next generated object is after obj4...
                 y = fy - (h * 4) #...and in line with it.
@@ -166,7 +183,7 @@ class ObjectGenerator:
                     if self.last_obj_type != "DOWN_STAIR": #Catches any "DOWN_STAIR" object types created in the IF statement above
 
                         first_obj = self.obh.create_object((x, y, w, h), (255, 255, 0))
-                        self.ao(first_obj, True, True, True)
+                        self.add_object(first_obj, True, True, True)
                         self.gen_objs.append(first_obj)
 
                         colour = (0, 255, 255)
@@ -221,13 +238,12 @@ class ObjectGenerator:
 
                             for obj in generatedObjects:
                                 for val in generatedObjects[obj]:
-                                    print(val)
                                     o = self.obh.create_object((x + w + (w * val-1), y + (h * obj), w, h), colour)
-                                    self.ao(o, True, True, True)
+                                    self.add_object(o, True, True, True)
                                     self.gen_objs.append(o) 
 
                         x = first_obj.get_x() + (w * gen_num)
 
                         last_obj = self.obh.create_object((x + w, last_obj_y, w, h), (255, 0, 255))
-                        self.ao(last_obj, True, True, True)
+                        self.add_object(last_obj, True, True, True)
                         self.gen_objs.append(last_obj)

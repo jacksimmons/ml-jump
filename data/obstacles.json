@@ -1,27 +1,32 @@
 {
-  "OBJECTS": {
-    "Block": {
-      "w": "50",
-      "h": "50",
-      "col": {
-        "r": "255",
-        "g": "255",
-        "b": "255"
-      }
-    }
+  "formations":
+  [
+    {
+      "name": "UP-RIGHT",
+      "formation": 
+      ["ox",
+       "xo"]
+    },
 
-  },
+    {
+      "name": "DOWN-RIGHT",
+      "formation": 
+      ["xo",
+       "ox"]
+    },
 
-  "FORMATIONS": {
-    "Single Block": {
-      "1": {
-        "x": "0",
-        "y": "0"
-      },
-      "2": {
-        "x": "200",
-        "y": "200"
-      }
+    {
+      "name": "STRAIGHT",
+      "formation": 
+      ["xx",
+       "oo"]
+    },
+
+    {
+      "name": "BLOCK",
+      "formation": 
+      ["xx",
+       "xx"]
     }
-  }
+  ]
 }

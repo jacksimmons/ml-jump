@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "Python",
+            "type": "debugpy",
+            "request": "launch",
+            "stopOnEntry": false,
+            "program": "main.py",  // Specify the full path to your file
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "envFile": "${workspaceFolder}/.env",
+        }
+    ],
+ }

@@ -1,6 +1,6 @@
 import gym
-from model import DeepQNetwork, Agent
-from utils import plotLearning
+from _model import DeepQNetwork, Agent
+from _utils import plotLearning
 import numpy as np
 from gym import wrappers
 
