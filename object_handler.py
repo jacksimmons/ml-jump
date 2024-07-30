@@ -6,16 +6,16 @@ from obstacle_generator import ObstacleGenerator
 class ObjectHandler:
     def __init__(self):
         #Object lists used to group object types together
-        self.objects = [] #All of the Objects currently on stage (should include all of the below)
+        self.objects: list[Object] = [] #All of the Objects currently on stage (should include all of the below)
         self.ground = [] #An array of Objects that act as valid ground for dynamic objects to move along
         self.floor = None
 
         #Obstacles and physics
-        self.moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
-        self.obstacles = [] #An array of Objects that kill the player on contact.
-        self.object_speed = 7 #The speed at which the moving objects move left (pixels per frame)
-        self.jump_strength = 8 #How powerful the player's jump is
-        self.g_strength = -4 #The acceleration due to gravity that the player receives (i.e. gravitational strength)
+        self.__moving = [] #An array of Objects that are scrolling from the right side of the screen to the left.
+        self.__obstacles = [] #An array of Objects that kill the player on contact.
+        self.__obj_spd: float = 3.5 #The speed at which the moving objects move left (pixels per frame)
+        self.__jump_strength: float = 8 #How powerful the player's jump is
+        self.__g_strength: float = -4 #The acceleration due to gravity that the player receives (i.e. gravitational strength)
 
         self.obg = ObstacleGenerator(self) #The ObjectGenerator
 
@@ -27,7 +27,7 @@ class ObjectHandler:
         self.score = None
 
         #Player variables
-        self.player = None #The current Player object
+        self.player: Object = None #The current Player object
         self.player_grounded = False
         self.player_floored = False
         self.player_floored_cnt = 0
@@ -46,7 +46,6 @@ class ObjectHandler:
     def handle_objects(self):
         x, y = pygame.mouse.get_pos()
         for ui in self.ui:
-
             if self.score is not None:
                 cur_score = int(self.score.get_textobj().get_text()[7:])
                 self.score.get_textobj().set_text("Score: " + str(cur_score + 1))
@@ -91,21 +90,19 @@ class ObjectHandler:
             else:
 
                 if self.player_g_cnt == 5:
-                    self.player.accelerate('y', -self.g_strength)
+                    self.player.accelerate('y', -self.__g_strength)
                     self.player_g_cnt = 0
 
                 self.player_g_cnt += 1
 
-            p = self.player.get_rect()
+            p: pygame.Rect = self.player.get_rect()
 
-            if p.y + p.h < self.get_floor().get_y():
-                #If the player's y position is less than the floor's y position (i.e. above it):
-
+            # If the player is above the floor...
+            if p.bottom < self.get_floor().get_top():
                 self.player_grounded = False
                 self.player_floored = False
                 #If none of the ground objects are touching the player, this default value of player_grounded will be used.
                 for g in self.ground:
-
                     r = g.get_rect()
 
                     #if p.collidepoint(r.centerx, p.y): #Check if they are on roughly the same x position
@@ -123,30 +120,18 @@ class ObjectHandler:
                         self.player.set_component_velocity('y', 0)
                         self.downwarp(p, r)
 
-            elif p.y + p.h == self.get_floor().get_y():
+            elif p.y + p.h == self.get_floor().get_top():
                 self.player_grounded = True
                 self.player_floored = True
                 self.player_floored_cnt += 1
 
         for object in self.objects:
-
             object.move(object.get_velocity())
-
             r = object.get_rect()
-            sx, sy = pygame.display.get_surface().get_size()
 
             if object is not self.player:
-                if r.x + r.w < 0:
+                if r.right < 0 or r.bottom < 0:
                     self.objects.remove(object)
-                    del object
-
-                if r.y + r.h < 0:
-                    self.objects.remove(object)
-                    del object
-
-                if r.w < 0 or r.h < 0: #Illegal object (negative length sides)
-                    self.objects.remove(object)
-                    del object
 
     def add_object(self, object):
         "Validate an object"
@@ -164,21 +149,17 @@ class ObjectHandler:
             if g not in self.objects:
                 self.ground.remove(g)
 
-        for m in self.moving:
+        for m in self.__moving:
             if m not in self.objects:
-                self.moving.remove(m)
+                self.__moving.remove(m)
 
-        for o in self.obstacles:
+        for o in self.__obstacles:
             if o not in self.objects:
-                self.obstacles.remove(o)
+                self.__obstacles.remove(o)
 
     def get_objects(self):
         "Return valid objects"
         return self.objects
-
-    def create_object(self, rect, colour, width:int=0, image=None):
-        "Tool for generating an Object"
-        return Object(rect, colour, width, image)
 
     #Button Objects
     def check_hovering(self, x, y, return_name:bool=False, update_button:bool=False):
@@ -257,7 +238,7 @@ class ObjectHandler:
 
                 self.player.set_rect(pygame.Rect(p.x, p.y-1, p.w, p.h))
                 #Move the player 1 pixel up so the program doesn't think they are still on the ground
-                self.player.accelerate('y', -self.jump_strength)
+                self.player.accelerate('y', -self.__jump_strength)
                 return True
             return False
 
@@ -276,32 +257,28 @@ class ObjectHandler:
     #Moving objects
     def add_obstacle(self, obstacle):
         "Validate an obstacle"
-        self.obstacles.append(obstacle)
+        self.__obstacles.append(obstacle)
 
     def remove_obstacle(self, obstacle):
         "Invalidate an obstacle"
-        self.obstacles.remove(obstacle)
+        self.__obstacles.remove(obstacle)
 
     def get_moving_speed(self):
         "Return the default object movement speed"
-        return self.object_speed
+        return self.__obj_spd
 
-    def add_moving(self, moving):
+    def add_moving(self, moving: Object):
         "Validate a moving object"
-        self.moving.append(moving)
+        moving.set_component_velocity('x', -self.__obj_spd)
+        self.__moving.append(moving)
 
     def remove_moving(self, moving):
         "Invalidate a moving object"
-        self.moving.remove(moving)
+        self.__moving.remove(moving)
 
     def get_moving(self):
         "Return all valid moving objects"
-        return self.moving
-
-    def handle_moving(self):
-        "Handle object movement"
-        for m in self.moving:
-            m.set_component_velocity('x', -self.object_speed)
+        return self.__moving
 
     def generate_ground(self, timer):
         "Generate ground randomly based on the player's position"
@@ -309,17 +286,18 @@ class ObjectHandler:
 
     #Obstacles
     def handle_obstacles(self) -> bool:
-        "Handle obstacle collision with the player"
-        o_rects = [o.get_rect() for o in self.obstacles]
+        "Handle death collision with the player"
+        o_rects = [o.get_rect() for o in self.__obstacles]
         if self.player is not None:
             for r in o_rects:
                 if r.colliderect(self.player.get_rect()):
+                    print("Hi")
                     return False
         return True
 
     #Floor Collision
     def get_floor(self) -> Object:
-        "Return the floor if possible, otherwise return the first ground object validated"
+        "Returns the floor if possible, otherwise return the first ground object validated"
         if self.floor is not None:
             return self.floor
         else:
@@ -337,6 +315,7 @@ class ObjectHandler:
         "Handles all rendering"
         for object in self.objects:
             pygame.draw.rect(surface, object.get_colour(), object.get_rect())
+            pygame.draw.rect(surface, (255, 0, 0), object.get_rect(), 2)
 
         for u in self.ui:
             t = u.get_textobj()

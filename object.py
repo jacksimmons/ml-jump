@@ -5,17 +5,17 @@ import random
 
 
 class Object:
-    def __init__(self, rect:pygame.Rect, colour:pygame.Color, width:int=5, image=None):
-        self.rect = pygame.Rect(rect) #Attempt to convert the rect to pygame.Rect type
-        self.colour = np.array(colour) #A 24-bit tuple to display colour
-        self.default_colour = np.array(colour) #This is constant - there is no set_default_colour() method.
+    def __init__(self, rect: pygame.Rect, colour: pygame.Color, width:int=5, image=None):
+        self.rect: pygame.Rect = pygame.Rect(rect)
+        self.colour = np.array(colour)
+        self.default_colour = np.array(colour)
         self.width = width
         self.image = image
 
         self.h_velocity = 0 #Horizontal velocity
         self.v_velocity = 0 #Vertical velocity
 
-    def set_rect(self, rect:pygame.Rect):
+    def set_rect(self, rect: pygame.Rect):
         "Set the rectangular position of the object"
         self.rect = rect
 
@@ -23,11 +23,11 @@ class Object:
         "Get the rectangular position of the object"
         return self.rect
 
-    def get_x(self):
+    def get_left(self):
         "Get the x ('left') component of the object's rect"
         return self.rect.x
 
-    def get_y(self):
+    def get_top(self):
         "Get the y ('top') component of the object's rect"
         return self.rect.y
 

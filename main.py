@@ -39,7 +39,7 @@ while running:
         #Create a display window
         dim = dw, dh = 500, 500 #Display's width and height
 
-        game = Game("Title", 1920, 200, 60)
+        game = Game("Title")
 
         obh = game.get_obh()
 

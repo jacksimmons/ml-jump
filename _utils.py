@@ -20,7 +20,7 @@ def plotLearning(x, scores, epsilons, filename, lines=None):
 
     ax2.scatter(x, running_avg, color="C1")
     #ax2.xaxis.tick_top()
-    ax2.axes.get_xaxis().set_visible(False)
+    ax2.axes.get_leftaxis().set_visible(False)
     ax2.yaxis.tick_right()
     #ax2.set_xlabel('x label 2', color="C1")
     ax2.set_ylabel('Score', color="C1")

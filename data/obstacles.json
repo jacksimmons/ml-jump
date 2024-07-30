@@ -9,23 +9,9 @@
     },
 
     {
-      "name": "DOWN-RIGHT",
-      "formation": 
-      ["xo",
-       "ox"]
-    },
-
-    {
       "name": "STRAIGHT",
       "formation": 
-      ["xx",
-       "oo"]
-    },
-
-    {
-      "name": "BLOCK",
-      "formation": 
-      ["xx",
+      ["oo",
        "xx"]
     }
   ]
